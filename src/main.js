@@ -90,6 +90,7 @@ globalTabBtns.forEach(btn => {
       openProfile(window.firebaseAuth?.currentUser?.displayName || 'moi', true);
     } else if (tab === 'friends') {
       goToScreen(friendsScreen);
+      loadFriendsTab('list');
     } else if (tab === 'shop') {
       showMessage('🛍️ Boutique bientôt disponible');
     } else if (tab === 'options') {
@@ -212,23 +213,15 @@ async function initFirebase() {
       const userCredential = await createUserWithEmailAndPassword(auth, fakeEmail, password);
       await updateProfile(userCredential.user, { displayName: username });
 
-      // 🔥 Créer le document utilisateur dans Firestore
       const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
 
       await setDoc(doc(window.firebaseDB, 'users', userCredential.user.uid), {
         pseudo: username,
         createdAt: serverTimestamp(),
-        stats: {
-          games: 0,
-          wins: 0,
-          ratio: 0,
-        },
+        stats: { games: 0, wins: 0, ratio: 0 },
         friends: [],
         achievements: [],
-        friendsRequests: {
-          sent: [],
-          received: [],
-        },
+        friendsRequests: { sent: [], received: [] },
       });
 
       showMessage('✅ Inscription réussie ! Pseudo : ' + username);
@@ -245,7 +238,7 @@ async function initFirebase() {
   });
 }
 
-initFirebase(); // ← Appelé APRÈS la fermeture de initFirebase
+initFirebase();
 
 // ===== MODE NORMAL → LOBBY =====
 const normalModeCard = document.querySelector('.mode-card[data-mode="normal"] .mode-play');
@@ -406,70 +399,234 @@ function initShaderCanvas(canvas) {
   render();
 }
 
-// ===================== ÉCRAN AMIS =====================
+// ===================== ÉCRAN AMIS (FIRESTORE) =====================
 const btnBackFriends = document.getElementById('btn-back-friends');
 const friendsSearch = document.getElementById('friends-search');
 const friendsResults = document.getElementById('friends-search-results');
 const btnCopyInvite = document.getElementById('btn-copy-invite');
+const friendsPanels = {
+  list: document.querySelector('[data-friends-panel="list"]'),
+  received: document.querySelector('[data-friends-panel="received"]'),
+  sent: document.querySelector('[data-friends-panel="sent"]'),
+  suggestions: document.querySelector('[data-friends-panel="suggestions"]'),
+};
 
+let firestoreFns = null;
+async function getFirestoreFns() {
+  if (!firestoreFns) {
+    firestoreFns = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+  }
+  return firestoreFns;
+}
+
+// ===== Retour =====
 btnBackFriends.addEventListener('click', () => {
   goToScreen(lobbyScreen);
 });
 
+// ===== Onglets pilules =====
 const friendsTabs = document.querySelectorAll('.friends-tab');
-const friendsPanels = document.querySelectorAll('.friends-panel');
-
 friendsTabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     friendsTabs.forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
 
-    friendsPanels.forEach((p) => p.classList.add('hidden'));
-    const target = document.querySelector(`[data-friends-panel="${tab.dataset.friendsTab}"]`);
-    if (target) target.classList.remove('hidden');
+    Object.values(friendsPanels).forEach((p) => p.classList.add('hidden'));
+    const target = friendsPanels[tab.dataset.friendsTab];
+    if (target) {
+      target.classList.remove('hidden');
+      loadFriendsTab(tab.dataset.friendsTab);
+    }
   });
 });
 
-friendsSearch.addEventListener('input', (e) => {
-  const query = e.target.value.trim().toLowerCase();
+// ===== Charger une section =====
+async function loadFriendsTab(tabName) {
+  try {
+    const user = window.firebaseAuth?.currentUser;
+    if (!user) return;
 
-  if (query.length < 3) {
+    const { collection, query, where, getDocs, doc, getDoc } = await getFirestoreFns();
+
+    if (tabName === 'list') {
+      const q = query(collection(window.firebaseDB, 'friendships'), where('users', 'array-contains', user.uid));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        friendsPanels.list.innerHTML = '<p class="friends-empty">Aucun ami pour le moment...</p>';
+        return;
+      }
+
+      let html = '';
+      for (const d of snap.docs) {
+        const data = d.data();
+        const otherId = data.users.find(id => id !== user.uid);
+        const otherDoc = await getDoc(doc(window.firebaseDB, 'users', otherId));
+        if (otherDoc.exists()) {
+          const other = otherDoc.data();
+          html += renderFriendCard(otherId, other.pseudo, 'friend');
+        }
+      }
+      friendsPanels.list.innerHTML = html || '<p class="friends-empty">Aucun ami pour le moment...</p>';
+
+    } else if (tabName === 'received') {
+      const q = query(collection(window.firebaseDB, 'friendRequests'), where('to', '==', user.uid));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        friendsPanels.received.innerHTML = '<p class="friends-empty">Aucune demande reçue.</p>';
+        return;
+      }
+
+      let html = '';
+      for (const d of snap.docs) {
+        const data = d.data();
+        html += renderFriendCard(data.from, data.fromPseudo, 'received', d.id);
+      }
+      friendsPanels.received.innerHTML = html;
+
+    } else if (tabName === 'sent') {
+      const q = query(collection(window.firebaseDB, 'friendRequests'), where('from', '==', user.uid));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        friendsPanels.sent.innerHTML = '<p class="friends-empty">Aucune demande envoyée.</p>';
+        return;
+      }
+
+      let html = '';
+      for (const d of snap.docs) {
+        const data = d.data();
+        html += renderFriendCard(data.to, data.toPseudo, 'sent', d.id);
+      }
+      friendsPanels.sent.innerHTML = html;
+
+    } else if (tabName === 'suggestions') {
+      const snap = await getDocs(collection(window.firebaseDB, 'users'));
+      let html = '';
+      snap.forEach(d => {
+        if (d.id !== user.uid) {
+          const data = d.data();
+          html += renderFriendCard(d.id, data.pseudo, 'add');
+        }
+      });
+      friendsPanels.suggestions.innerHTML = html || '<p class="friends-empty">Aucune suggestion.</p>';
+    }
+
+    attachFriendCardActions();
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+}
+
+// ===== Rendu d'une carte =====
+function renderFriendCard(userId, pseudo, state, requestId = '') {
+  let btn = '';
+  if (state === 'add')      btn = '<button class="action-btn accept" data-action="add">+ Ajouter</button>';
+  if (state === 'friend')   btn = '<button class="action-btn disabled">✓ Ami</button>';
+  if (state === 'sent')     btn = '<button class="action-btn cancel" data-action="cancel">Annuler</button>';
+  if (state === 'received') btn = '<button class="action-btn accept" data-action="accept">Accepter</button><button class="action-btn refuse" data-action="refuse">Refuser</button>';
+
+  return `
+    <div class="friend-card" data-userid="${userId}" data-pseudo="${pseudo}" data-requestid="${requestId}">
+      <div class="friend-avatar">👤</div>
+      <div class="friend-info">
+        <span class="friend-pseudo">${pseudo}</span>
+      </div>
+      <div class="friend-actions">${btn}</div>
+    </div>
+  `;
+}
+
+// ===== Brancher les boutons des cartes =====
+function attachFriendCardActions() {
+  document.querySelectorAll('.friend-card .action-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.friend-card');
+      const userId = card.dataset.userid;
+      const pseudo = card.dataset.pseudo;
+      const requestId = card.dataset.requestid;
+      const action = btn.dataset.action;
+
+      const user = window.firebaseAuth?.currentUser;
+      if (!user) return;
+
+      const { doc, setDoc, deleteDoc, serverTimestamp } = await getFirestoreFns();
+
+      if (action === 'add') {
+        const reqId = `${user.uid}_${userId}`;
+        await setDoc(doc(window.firebaseDB, 'friendRequests', reqId), {
+          from: user.uid,
+          fromPseudo: user.displayName,
+          to: userId,
+          toPseudo: pseudo,
+          createdAt: serverTimestamp(),
+        });
+        showMessage('✅ Demande envoyée à ' + pseudo);
+        btn.textContent = '⏳ Envoyé';
+        btn.classList.remove('accept');
+        btn.classList.add('disabled');
+
+      } else if (action === 'accept') {
+        const friendshipId = [user.uid, userId].sort().join('_');
+        await setDoc(doc(window.firebaseDB, 'friendships', friendshipId), {
+          users: [user.uid, userId],
+          createdAt: serverTimestamp(),
+        });
+        await deleteDoc(doc(window.firebaseDB, 'friendRequests', requestId));
+        showMessage('✅ ' + pseudo + ' est maintenant ton ami !');
+        card.remove();
+
+      } else if (action === 'refuse') {
+        await deleteDoc(doc(window.firebaseDB, 'friendRequests', requestId));
+        showMessage('❌ Demande refusée');
+        card.remove();
+
+      } else if (action === 'cancel') {
+        await deleteDoc(doc(window.firebaseDB, 'friendRequests', requestId));
+        showMessage('❌ Demande annulée');
+        card.remove();
+      }
+    });
+  });
+}
+
+// ===== Recherche =====
+friendsSearch.addEventListener('input', async (e) => {
+  const query_text = e.target.value.trim().toLowerCase();
+
+  if (query_text.length < 3) {
     friendsResults.classList.add('hidden');
     return;
   }
 
-  const fakeResults = [
-    { pseudo: 'loup_alpha', state: 'add' },
-    { pseudo: 'loup_beta', state: 'friend' },
-    { pseudo: 'loup_gamma', state: 'sent' },
-    { pseudo: 'loup_delta', state: 'received' },
-  ].filter((u) => u.pseudo.includes(query));
+  const { collection, getDocs } = await getFirestoreFns();
+  const snap = await getDocs(collection(window.firebaseDB, 'users'));
 
-  if (fakeResults.length === 0) {
+  const results = [];
+  snap.forEach(d => {
+    const data = d.data();
+    if (data.pseudo && data.pseudo.toLowerCase().includes(query_text)) {
+      results.push({ id: d.id, pseudo: data.pseudo });
+    }
+  });
+
+  const user = window.firebaseAuth?.currentUser;
+
+  if (results.length === 0) {
     friendsResults.innerHTML = '<p class="friends-empty">Aucun joueur trouvé.</p>';
   } else {
-    friendsResults.innerHTML = fakeResults.map((u) => {
-      let btn = '';
-      if (u.state === 'add')      btn = '<button class="action-btn accept">+ Ajouter</button>';
-      if (u.state === 'friend')   btn = '<button class="action-btn disabled">✓ Ami</button>';
-      if (u.state === 'sent')     btn = '<button class="action-btn disabled">⏳ Envoyé</button>';
-      if (u.state === 'received') btn = '<button class="action-btn accept">Accepter</button>';
-
-      return `
-        <div class="friend-card">
-          <div class="friend-avatar">👤</div>
-          <div class="friend-info">
-            <span class="friend-pseudo">${u.pseudo}</span>
-          </div>
-          <div class="friend-actions">${btn}</div>
-        </div>
-      `;
+    friendsResults.innerHTML = results.map(r => {
+      if (r.id === user?.uid) return '';
+      return renderFriendCard(r.id, r.pseudo, 'add');
     }).join('');
+    attachFriendCardActions();
   }
 
   friendsResults.classList.remove('hidden');
 });
 
+// ===== Copier le lien =====
 btnCopyInvite.addEventListener('click', async () => {
   const currentUser = window.firebaseAuth?.currentUser;
   const pseudo = currentUser?.displayName || 'joueur';
@@ -501,10 +658,9 @@ async function openProfile(pseudo, isSelf = false) {
     profileActionBtn.textContent = '✏️ Modifier le profil';
     profileActionBtn.classList.add('friend');
 
-    // 🔥 Charger les vraies données depuis Firestore
     const currentUser = window.firebaseAuth?.currentUser;
     if (currentUser) {
-      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+      const { doc, getDoc } = await getFirestoreFns();
 
       try {
         const userDoc = await getDoc(doc(window.firebaseDB, 'users', currentUser.uid));
@@ -525,7 +681,6 @@ async function openProfile(pseudo, isSelf = false) {
     profileActionBtn.textContent = '+ Ajouter en ami';
     profileActionBtn.classList.remove('friend');
 
-    // Stats à 0 pour les autres joueurs (plus tard, on chargera leurs vraies stats)
     document.getElementById('stat-games').textContent = 0;
     document.getElementById('stat-wins').textContent  = 0;
     document.getElementById('stat-ratio').textContent = '0 %';

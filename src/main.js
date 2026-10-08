@@ -26,12 +26,10 @@ const btnRefreshGames = document.getElementById('btn-refresh-games');
 const gamesList = document.getElementById('games-list');
 
 // ===== FONCTION POUR CHANGER D'ÉCRAN =====
-function goToScreen(screen) {
-  document
-    .querySelectorAll('.screen')
-    .forEach((s) => s.classList.add('hidden'));
+let goToScreen = function(screen) {
+  document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
   screen.classList.remove('hidden');
-}
+};
 
 // ===== INTRO → AUTH =====
 btnContinue.addEventListener('click', () => {
@@ -180,15 +178,6 @@ const bossModeCard = document.querySelector(
 if (bossModeCard) {
   bossModeCard.addEventListener('click', () => {
     popup.classList.remove('hidden');
-  });
-}
-
-// ===== LOBBY : clic sur l'onglet "Jouer" → écran Parties =====
-const lobbyPlayTab = lobbyScreen.querySelector('.tab-btn[data-tab="play"]');
-if (lobbyPlayTab) {
-  lobbyPlayTab.addEventListener('click', () => {
-    goToScreen(publicGamesScreen);
-    loadPublicGames();
   });
 }
 
@@ -386,16 +375,6 @@ const friendsSearch = document.getElementById('friends-search');
 const friendsResults = document.getElementById('friends-search-results');
 const btnCopyInvite = document.getElementById('btn-copy-invite');
 
-// ===== Navigation : onglet "Amis" depuis le lobby =====
-const lobbyFriendsTab = lobbyScreen.querySelector(
-  '.tab-btn[data-tab="friends"]'
-);
-if (lobbyFriendsTab) {
-  lobbyFriendsTab.addEventListener('click', () => {
-    goToScreen(friendsScreen);
-  });
-}
-
 // ===== Retour depuis l'écran Amis =====
 btnBackFriends.addEventListener('click', () => {
   goToScreen(lobbyScreen);
@@ -488,14 +467,6 @@ const profilePseudo = document.getElementById('profile-pseudo');
 const profileStatus = document.getElementById('profile-status');
 const profileActionBtn = document.getElementById('profile-action-btn');
 
-// ===== Navigation : onglet "Profil" depuis le lobby =====
-const lobbyProfileTab = lobbyScreen.querySelector('.tab-btn[data-tab="profile"]');
-if (lobbyProfileTab) {
-  lobbyProfileTab.addEventListener('click', () => {
-    openProfile(window.firebaseAuth?.currentUser?.displayName || 'moi', true);
-  });
-}
-
 // ===== Retour depuis l'écran Profil =====
 btnBackProfile.addEventListener('click', () => {
   goToScreen(lobbyScreen);
@@ -561,3 +532,59 @@ if (window.firebaseAuth) {
     }
   });
 }
+// ===================== BARRE D'ONGLETS GLOBALE =====================
+const globalTabBar = document.getElementById('global-tab-bar');
+const globalTabBtns = globalTabBar.querySelectorAll('.tab-btn');
+
+// ===== Afficher/cacher la barre selon l'écran =====
+function updateTabBarVisibility() {
+  const screensWithTabBar = [
+    'lobby-screen',
+    'public-games-screen',
+    'friends-screen',
+    'profile-screen',
+  ];
+
+  const activeScreen = document.querySelector('.screen:not(.hidden)');
+  if (!activeScreen) return;
+
+  if (screensWithTabBar.includes(activeScreen.id)) {
+    globalTabBar.classList.remove('hidden');
+  } else {
+    globalTabBar.classList.add('hidden');
+  }
+
+  // Mettre à jour l'onglet actif
+  let activeTab = '';
+  if (activeScreen.id === 'lobby-screen')         activeTab = 'play';
+  if (activeScreen.id === 'public-games-screen')  activeTab = 'play';
+  if (activeScreen.id === 'friends-screen')       activeTab = 'friends';
+  if (activeScreen.id === 'profile-screen')       activeTab = 'profile';
+
+  globalTabBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === activeTab);
+  });
+}
+
+// ===== Surveiller les changements d'écran =====
+const originalGoToScreen = goToScreen;
+goToScreen = function(screen) {
+  originalGoToScreen(screen);
+  setTimeout(updateTabBarVisibility, 50);
+};
+
+// ===== Brancher les onglets =====
+globalTabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+
+    if (tab === 'play')    goToScreen(lobbyScreen);
+    if (tab === 'profile') openProfile(window.firebaseAuth?.currentUser?.displayName || 'moi', true);
+    if (tab === 'friends') goToScreen(friendsScreen);
+    if (tab === 'shop')    showMessage('🛍️ Boutique bientôt disponible');
+    if (tab === 'options') showMessage('⚙️ Options bientôt disponibles');
+  });
+});
+
+// ===== Vérifier au démarrage =====
+setTimeout(updateTabBarVisibility, 500);

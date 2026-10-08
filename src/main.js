@@ -29,18 +29,20 @@ const publicGamesScreen = document.getElementById('public-games-screen');
 const friendsScreen     = document.getElementById('friends-screen');
 const profileScreen     = document.getElementById('profile-screen');
 
-const btnContinue    = document.getElementById('btn-continue');
-const btnBackMode    = document.getElementById('btn-back-mode');
-const btnBackGames   = document.getElementById('btn-back-games');
+const btnContinue     = document.getElementById('btn-continue');
+const btnBackMode     = document.getElementById('btn-back-mode');
+const btnBackGames    = document.getElementById('btn-back-games');
 const btnRefreshGames = document.getElementById('btn-refresh-games');
-const gamesList      = document.getElementById('games-list');
+const gamesList       = document.getElementById('games-list');
 
 // ===================== BARRE D'ONGLETS GLOBALE =====================
 const globalTabBar  = document.getElementById('global-tab-bar');
-// Masquer la barre par défaut
-globalTabBar.classList.add('hidden');
 const globalTabBtns = globalTabBar.querySelectorAll('.tab-btn');
 
+// Masquer la barre par défaut
+globalTabBar.classList.add('hidden');
+
+// ===== FONCTION DE VISIBILITÉ DE LA BARRE =====
 function updateTabBarVisibility() {
   const screensWithTabBar = [
     'lobby-screen',
@@ -49,20 +51,13 @@ function updateTabBarVisibility() {
     'profile-screen',
   ];
 
-  // ⚠️ On ne montre JAMAIS la barre si on est sur intro/auth/mode
-  const activeScreenEl = document.querySelector('.screen:not(.hidden)');
-  if (!activeScreenEl) {
-    globalTabBar.classList.add('hidden');
-    return;
-  }
-
   const activeScreen = document.querySelector('.screen:not(.hidden)');
   if (!activeScreen) return;
 
   if (screensWithTabBar.includes(activeScreen.id)) {
-    globalTabBar.classList.remove('hidden');
+    globalTabBar.classList.add('visible');
   } else {
-    globalTabBar.classList.add('hidden');
+    globalTabBar.classList.remove('visible');
   }
 
   let activeTab = '';
@@ -80,7 +75,7 @@ function updateTabBarVisibility() {
 function goToScreen(screen) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
   screen.classList.remove('hidden');
-  setTimeout(updateTabBarVisibility, 30);
+  updateTabBarVisibility(); // ← appel immédiat, pas de setTimeout
 }
 
 // ===== BRANCHEMENT DES ONGLETS GLOBAUX =====
@@ -219,6 +214,26 @@ async function initFirebase() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, fakeEmail, password);
       await updateProfile(userCredential.user, { displayName: username });
+
+      // 🔥 Créer le document utilisateur dans Firestore
+      const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+
+      await setDoc(doc(window.firebaseDB, 'users', userCredential.user.uid), {
+        pseudo: username,
+        createdAt: serverTimestamp(),
+        stats: {
+          games: 0,
+          wins: 0,
+          ratio: 0,
+        },
+        friends: [],
+        achievements: [],
+        friendsRequests: {
+          sent: [],
+          received: [],
+        },
+      });
+
       showMessage('✅ Inscription réussie ! Pseudo : ' + username);
       goToScreen(modeScreen);
     } catch (err) {
@@ -525,6 +540,3 @@ function checkInviteLink() {
 }
 
 setTimeout(checkInviteLink, 1000);
-
-// ===== Vérification au démarrage =====
-setTimeout(updateTabBarVisibility, 500);

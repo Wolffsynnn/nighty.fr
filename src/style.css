@@ -1682,3 +1682,12 @@ body {
   color: #ff6666;
   background: rgba(255, 102, 102, 0.15);
 }
+/* Barre cachée par défaut */
+#global-tab-bar {
+  display: none !important;
+}
+
+/* Barre visible uniquement si elle a la classe "visible" */
+#global-tab-bar.visible {
+  display: flex !important;
+}

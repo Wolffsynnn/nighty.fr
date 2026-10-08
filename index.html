@@ -9,6 +9,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
     import { getAuth } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyBdl5zBIrxrq480GMiKFyKpfrBhZmIAA30',
@@ -21,7 +22,9 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
     window.firebaseAuth = auth;
+    window.firebaseDB = db;
     console.log('✅ Firebase initialisé');
   </script>
 </head>
@@ -132,7 +135,6 @@
     <div class="bg-layer" style="background-image: url('https://i.imgur.com/HnNvpZJ.png');"></div>
     <canvas id="shader-canvas"></canvas>
 
-    <!-- Bouton Retour -->
     <button id="btn-back-games" class="back-btn" aria-label="Retour">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -140,7 +142,6 @@
       </svg>
     </button>
 
-    <!-- Bouton Rafraîchir -->
     <button id="btn-refresh-games" class="refresh-btn" aria-label="Rafraîchir">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"></polyline>
@@ -179,7 +180,6 @@
   <div id="friends-screen" class="screen hidden">
     <div class="bg-layer" style="background-image: url('https://i.imgur.com/HnNvpZJ.png');"></div>
 
-    <!-- Bouton Retour -->
     <button id="btn-back-friends" class="back-btn" aria-label="Retour">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -223,7 +223,6 @@
   <div id="profile-screen" class="screen hidden">
     <div class="bg-layer" style="background-image: url('https://i.imgur.com/HnNvpZJ.png');"></div>
 
-    <!-- Bouton Retour -->
     <button id="btn-back-profile" class="back-btn" aria-label="Retour">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -232,7 +231,6 @@
     </button>
 
     <div class="profile-container">
-      <!-- En-tête -->
       <div class="profile-header">
         <div class="profile-avatar" id="profile-avatar">👤</div>
         <h2 class="profile-pseudo" id="profile-pseudo">loup_alpha</h2>
@@ -242,7 +240,6 @@
         <button class="profile-action-btn" id="profile-action-btn">+ Ajouter en ami</button>
       </div>
 
-      <!-- Statistiques -->
       <div class="profile-section">
         <h3>📊 Statistiques</h3>
         <div class="profile-stats">
@@ -261,7 +258,6 @@
         </div>
       </div>
 
-      <!-- Succès -->
       <div class="profile-section">
         <h3>🏆 Succès</h3>
         <div class="profile-achievements">
@@ -271,7 +267,6 @@
         </div>
       </div>
 
-      <!-- Historique -->
       <div class="profile-section">
         <h3>📜 Dernières parties</h3>
         <div class="profile-history">
@@ -301,8 +296,8 @@
     </div>
   </div>
 
-   <!-- ===== BARRE D'ONGLETS GLOBALE ===== -->
-   <nav id="global-tab-bar" class="tab-bar hidden">
+  <!-- ===== BARRE D'ONGLETS GLOBALE ===== -->
+  <nav id="global-tab-bar" class="tab-bar hidden">
     <button class="tab-btn" data-tab="lobby">
       <span class="tab-icon">🏠</span>
       <span>Lobby</span>

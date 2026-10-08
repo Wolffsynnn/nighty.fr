@@ -442,11 +442,11 @@ friendsTabs.forEach((tab) => {
 
 // ===== Charger une section =====
 async function loadFriendsTab(tabName) {
-  showMessage('🔍 Tab: ' + tabName + ' | User: ' + user.uid.substring(0, 8));
   try {
     const user = window.firebaseAuth?.currentUser;
     if (!user) return;
 
+    showMessage('🔍 Tab: ' + tabName + ' | User: ' + user.uid.substring(0, 8));
     const { collection, query, where, getDocs, doc, getDoc } = await getFirestoreFns();
 
     if (tabName === 'list') {

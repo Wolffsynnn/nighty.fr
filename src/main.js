@@ -471,7 +471,7 @@ friendsSearch.addEventListener('input', (e) => {
 btnCopyInvite.addEventListener('click', async () => {
   const currentUser = window.firebaseAuth?.currentUser;
   const pseudo = currentUser?.displayName || 'joueur';
-  const link = `${window.location.origin}/invite/${pseudo}`;
+  const link = `${window.location.origin}/?invite=${pseudo}`;
 
   try {
     await navigator.clipboard.writeText(link);

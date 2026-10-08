@@ -39,10 +39,8 @@ const gamesList       = document.getElementById('games-list');
 const globalTabBar  = document.getElementById('global-tab-bar');
 const globalTabBtns = globalTabBar.querySelectorAll('.tab-btn');
 
-// Masquer la barre par défaut
 globalTabBar.classList.add('hidden');
 
-// ===== FONCTION DE VISIBILITÉ DE LA BARRE =====
 function updateTabBarVisibility() {
   const screensWithTabBar = [
     'lobby-screen',
@@ -75,7 +73,7 @@ function updateTabBarVisibility() {
 function goToScreen(screen) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
   screen.classList.remove('hidden');
-  updateTabBarVisibility(); // ← appel immédiat, pas de setTimeout
+  updateTabBarVisibility();
 }
 
 // ===== BRANCHEMENT DES ONGLETS GLOBAUX =====
@@ -167,7 +165,6 @@ async function initFirebase() {
         goToScreen(modeScreen);
       }
 
-      // Gestion du lien d'invitation en attente
       const pending = sessionStorage.getItem('pendingInvite');
       if (pending) {
         openProfile(pending);
@@ -242,21 +239,19 @@ async function initFirebase() {
       } else if (err.code === 'auth/weak-password') {
         showMessage('❌ Mot de passe trop faible (6 car. min).');
       } else {
-        showMessage('❌ Erreur : ' + (err.code || err.message));
+        showMessage('❌ ' + err.code + ' — ' + err.message);
       }
     }
   });
 }
 
-initFirebase();
+initFirebase(); // ← Appelé APRÈS la fermeture de initFirebase
 
 // ===== MODE NORMAL → LOBBY =====
 const normalModeCard = document.querySelector('.mode-card[data-mode="normal"] .mode-play');
 if (normalModeCard) {
   normalModeCard.addEventListener('click', () => {
     goToScreen(lobbyScreen);
-
-    // Shader d'entrée
     const canvas = document.getElementById('shader-canvas-lobby');
     if (canvas) initShaderCanvas(canvas);
   });
@@ -498,17 +493,42 @@ btnBackProfile.addEventListener('click', () => {
   goToScreen(lobbyScreen);
 });
 
-function openProfile(pseudo, isSelf = false) {
+async function openProfile(pseudo, isSelf = false) {
   profilePseudo.textContent = pseudo;
 
   if (isSelf) {
     profileStatus.innerHTML = '<span class="status-dot online"></span> Toi';
     profileActionBtn.textContent = '✏️ Modifier le profil';
     profileActionBtn.classList.add('friend');
+
+    // 🔥 Charger les vraies données depuis Firestore
+    const currentUser = window.firebaseAuth?.currentUser;
+    if (currentUser) {
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+
+      try {
+        const userDoc = await getDoc(doc(window.firebaseDB, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          const stats = data.stats || { games: 0, wins: 0, ratio: 0 };
+
+          document.getElementById('stat-games').textContent = stats.games || 0;
+          document.getElementById('stat-wins').textContent  = stats.wins || 0;
+          document.getElementById('stat-ratio').textContent = (stats.ratio || 0) + ' %';
+        }
+      } catch (err) {
+        showMessage('❌ Erreur de chargement du profil');
+      }
+    }
   } else {
     profileStatus.innerHTML = '<span class="status-dot online"></span> En ligne';
     profileActionBtn.textContent = '+ Ajouter en ami';
     profileActionBtn.classList.remove('friend');
+
+    // Stats à 0 pour les autres joueurs (plus tard, on chargera leurs vraies stats)
+    document.getElementById('stat-games').textContent = 0;
+    document.getElementById('stat-wins').textContent  = 0;
+    document.getElementById('stat-ratio').textContent = '0 %';
   }
 
   goToScreen(profileScreen);

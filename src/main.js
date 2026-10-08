@@ -1,3 +1,11 @@
+window.onerror = function(msg) {
+  const el = document.getElementById('debug-message');
+  if (el) {
+    el.textContent = '❌ ERREUR : ' + msg;
+    el.style.display = 'block';
+  }
+};
+
 // ===== FONCTION DEBUG VISUELLE =====
 function showMessage(text) {
   const el = document.getElementById('debug-message');

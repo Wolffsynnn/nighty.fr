@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nighty — By Moonlight Studio</title>
+    <link rel="stylesheet" href="src/style.css" />
+
+    <script type="module">
+      import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
+      import { getAuth } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
+
+      const firebaseConfig = {
+        apiKey: 'AIzaSyBdl5zBIrxrq480GMiKFyKpfrBhZmIAA30',
+        authDomain: 'nighty-edabe.firebaseapp.com',
+        projectId: 'nighty-edabe',
+        storageBucket: 'nighty-edabe.firebasestorage.app',
+        messagingSenderId: '820765487440',
+        appId: '1:820765487440:web:461927282f4e0b4b0f7c55',
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      window.firebaseAuth = auth;
+      console.log('✅ Firebase initialisé');
+    </script>
+  </head>
+  <body>
+    <!-- ===== ÉCRAN 1 : INTRO ===== -->
+    <div id="intro-screen" class="screen">
+      <div class="bg-layer"></div>
+      <div class="screen-content">
+        <img id="logo" src="https://i.imgur.com/4iQuEGX.png" alt="Nighty" />
+        <p id="studio">By Moonlight Studio</p>
+        <button id="btn-continue">Continuer</button>
+      </div>
+    </div>
+
+    <!-- ===== ÉCRAN 2 : AUTHENTIFICATION ===== -->
+    <div id="auth-screen" class="screen hidden">
+      <div class="bg-layer"></div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Connexion</button>
+          <button class="auth-tab" data-tab="register">Inscription</button>
+        </div>
+
+        <form class="auth-form" id="form-login">
+          <label>
+            <span>Pseudo</span>
+            <input
+              type="text"
+              name="username"
+              autocomplete="username"
+              required
+            />
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <input
+              type="password"
+              name="password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+          <button type="submit" class="auth-submit">Se connecter</button>
+        </form>
+
+        <form class="auth-form hidden" id="form-register">
+          <label>
+            <span>Pseudo</span>
+            <input
+              type="text"
+              name="username"
+              autocomplete="username"
+              required
+            />
+          </label>
+          <label>
+            <span>Email <em>(optionnel)</em></span>
+            <input type="email" name="email" autocomplete="email" />
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <input
+              type="password"
+              name="password"
+              autocomplete="new-password"
+              required
+            />
+          </label>
+          <button type="submit" class="auth-submit">Créer un compte</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== ÉCRAN 3 : SÉLECTION DU MODE ===== -->
+    <div id="mode-screen" class="screen hidden">
+      <div class="bg-layer"></div>
+
+      <div class="mode-container">
+        <h2 class="mode-title">Choisis ton mode</h2>
+
+        <div class="mode-list">
+          <button id="btn-back-mode" class="back-btn" aria-label="Retour">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+
+          <!-- Carte Mode Normal -->
+          <div class="mode-card" data-mode="normal">
+            <h3>Mode Normal</h3>
+            <p>
+              Dans un village lointain, une meute de loups-garous s'attaque aux
+              habitants et dévore une personne chaque nuit. Le village doit
+              démasquer les coupables avant qu'il ne soit trop tard.
+            </p>
+            <div class="mode-infos">
+              <span>👥 5 à 16 joueurs</span>
+              <span>⏱️ ~5 à 10 min</span>
+            </div>
+            <button class="mode-play">Jouer</button>
+          </div>
+
+          <!-- Carte Mode Boss -->
+          <div class="mode-card" data-mode="boss">
+            <h3>Mode Boss</h3>
+            <p>
+              Une entité surpuissante s'est éveillée. Seule contre tous, elle
+              fera tout pour survivre. Le village saura-t-il l'arrêter ?
+            </p>
+            <div class="mode-infos">
+              <span>👥 8 à 12 joueurs</span>
+              <span>⏱️ ~5 à 20 min</span>
+            </div>
+            <button class="mode-play">Jouer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ÉCRAN 4 : LOBBY (accueil) ===== -->
+    <div id="lobby-screen" class="screen hidden">
+      <div
+        class="bg-layer"
+        style="background-image: url('https://i.imgur.com/HnNvpZJ.png')"
+      ></div>
+      <canvas id="shader-canvas-lobby"></canvas>
+
+      <div class="lobby-character">
+        <img
+          src="https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png"
+          alt="Personnage"
+        />
+      </div>
+
+      <!-- Barre d'onglets -->
+      <nav class="tab-bar">
+        <button class="tab-btn" data-tab="play">
+          <span class="tab-icon">🎮</span>
+          <span>Jouer</span>
+        </button>
+        <button class="tab-btn" data-tab="profile">
+          <span class="tab-icon">👤</span>
+          <span>Profil</span>
+        </button>
+        <button class="tab-btn" data-tab="shop">
+          <span class="tab-icon">🛍️</span>
+          <span>Boutique</span>
+        </button>
+        <button class="tab-btn" data-tab="friends">
+          <span class="tab-icon">👥</span>
+          <span>Amis</span>
+        </button>
+        <button class="tab-btn" data-tab="options">
+          <span class="tab-icon">⚙️</span>
+          <span>Options</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===== ÉCRAN 5 : PARTIES PUBLIQUES (Mode Normal) ===== -->
+    <div id="public-games-screen" class="screen hidden">
+      <div
+        class="bg-layer"
+        style="background-image: url('https://i.imgur.com/HnNvpZJ.png')"
+      ></div>
+      <canvas id="shader-canvas"></canvas>
+
+      <!-- Bouton Retour -->
+      <button id="btn-back-games" class="back-btn" aria-label="Retour">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </button>
+
+      <!-- Bouton Rafraîchir -->
+      <button
+        id="btn-refresh-games"
+        class="refresh-btn"
+        aria-label="Rafraîchir"
+      >
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path
+            d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+          ></path>
+        </svg>
+      </button>
+
+      <div class="games-layout">
+        <div class="games-main">
+          <h2 class="games-title">Mode Normal</h2>
+
+          <div class="games-actions">
+            <button class="game-action-btn" id="btn-create-game">
+              <span class="action-icon">➕</span>
+              <span>Créer une partie</span>
+            </button>
+            <button class="game-action-btn" id="btn-join-game">
+              <span class="action-icon">🔑</span>
+              <span>Rejoindre par code</span>
+            </button>
+          </div>
+
+          <div class="games-list" id="games-list">
+            <p class="games-empty">
+              Aucune partie disponible pour le moment...
+            </p>
+          </div>
+        </div>
+
+        <div class="games-character">
+          <img
+            src="https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png"
+            alt="Personnage"
+          />
+        </div>
+      </div>
+
+      <!-- Barre d'onglets -->
+      <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="play">
+          <span class="tab-icon">🎮</span>
+          <span>Jouer</span>
+        </button>
+        <button class="tab-btn" data-tab="profile">
+          <span class="tab-icon">👤</span>
+          <span>Profil</span>
+        </button>
+        <button class="tab-btn" data-tab="shop">
+          <span class="tab-icon">🛍️</span>
+          <span>Boutique</span>
+        </button>
+        <button class="tab-btn" data-tab="friends">
+          <span class="tab-icon">👥</span>
+          <span>Amis</span>
+        </button>
+        <button class="tab-btn" data-tab="options">
+          <span class="tab-icon">⚙️</span>
+          <span>Options</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===== ÉCRAN 6 : AMIS ===== -->
+    <div id="friends-screen" class="screen hidden">
+      <div
+        class="bg-layer"
+        style="background-image: url('https://i.imgur.com/HnNvpZJ.png')"
+      ></div>
+
+      <!-- Bouton Retour -->
+      <button id="btn-back-friends" class="back-btn" aria-label="Retour">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </button>
+
+      <div class="friends-container">
+        <!-- Barre de recherche + lien d'invitation -->
+        <div class="friends-topbar">
+          <input
+            type="text"
+            id="friends-search"
+            placeholder="🔍 Rechercher un pseudo..."
+          />
+          <button id="btn-copy-invite" title="Copier mon lien d'invitation">
+            🔗 Lien d'invitation
+          </button>
+        </div>
+
+        <!-- Résultats de recherche (cachés par défaut) -->
+        <div
+          id="friends-search-results"
+          class="friends-search-results hidden"
+        ></div>
+
+        <!-- Onglets pilules -->
+        <div class="friends-tabs">
+          <button class="friends-tab active" data-friends-tab="list">
+            👥 Amis
+          </button>
+          <button class="friends-tab" data-friends-tab="received">
+            📥 Reçues
+          </button>
+          <button class="friends-tab" data-friends-tab="sent">
+            📤 Envoyées
+          </button>
+          <button class="friends-tab" data-friends-tab="suggestions">
+            ✨ Suggestions
+          </button>
+        </div>
+
+        <!-- Contenu -->
+        <div class="friends-content">
+          <div class="friends-panel" data-friends-panel="list">
+            <p class="friends-empty">Aucun ami pour le moment...</p>
+          </div>
+          <div class="friends-panel hidden" data-friends-panel="received">
+            <p class="friends-empty">Aucune demande reçue.</p>
+          </div>
+          <div class="friends-panel hidden" data-friends-panel="sent">
+            <p class="friends-empty">Aucune demande envoyée.</p>
+          </div>
+          <div class="friends-panel hidden" data-friends-panel="suggestions">
+            <p class="friends-empty">Aucune suggestion pour le moment.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barre d'onglets -->
+      <nav class="tab-bar">
+        <button class="tab-btn" data-tab="play">
+          <span class="tab-icon">🎮</span>
+          <span>Jouer</span>
+        </button>
+        <button class="tab-btn" data-tab="profile">
+          <span class="tab-icon">👤</span>
+          <span>Profil</span>
+        </button>
+        <button class="tab-btn" data-tab="shop">
+          <span class="tab-icon">🛍️</span>
+          <span>Boutique</span>
+        </button>
+        <button class="tab-btn active" data-tab="friends">
+          <span class="tab-icon">👥</span>
+          <span>Amis</span>
+        </button>
+        <button class="tab-btn" data-tab="options">
+          <span class="tab-icon">⚙️</span>
+          <span>Options</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ===== POPUP "COMMING SOON" ===== -->
+    <div id="coming-soon-popup" class="popup-overlay hidden">
+      <div class="popup-box">
+        <h3>COMMING SOON...</h3>
+        <p>
+          Ce mode de jeu n'est pas disponible pour le moment. Reviens bientôt !
+        </p>
+        <button id="popup-return">Retour</button>
+      </div>
+    </div>
+
+    <!-- ===== MESSAGE DEBUG ===== -->
+    <div
+      id="debug-message"
+      style="
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: rgba(0, 0, 0, 0.85);
+        border: 2px solid #ffb347;
+        border-radius: 8px;
+        color: #ffb347;
+        font-family: Georgia, serif;
+        font-size: 14px;
+        text-align: center;
+        z-index: 9999;
+        display: none;
+        pointer-events: none;
+      "
+    ></div>
+
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

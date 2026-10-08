@@ -57,7 +57,7 @@ function updateTabBarVisibility() {
   }
 
   let activeTab = '';
-  if (activeScreen.id === 'lobby-screen')        activeTab = 'play';
+  if (activeScreen.id === 'lobby-screen')        activeTab = 'lobby';
   if (activeScreen.id === 'public-games-screen') activeTab = 'play';
   if (activeScreen.id === 'friends-screen')      activeTab = 'friends';
   if (activeScreen.id === 'profile-screen')      activeTab = 'profile';
@@ -79,8 +79,11 @@ globalTabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
 
-    if (tab === 'play') {
+    if (tab === 'lobby') {
       goToScreen(lobbyScreen);
+    } else if (tab === 'play') {
+      goToScreen(publicGamesScreen);
+      loadPublicGames();
     } else if (tab === 'profile') {
       openProfile(window.firebaseAuth?.currentUser?.displayName || 'moi', true);
     } else if (tab === 'friends') {

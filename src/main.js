@@ -480,3 +480,84 @@ btnCopyInvite.addEventListener('click', async () => {
     showMessage('❌ Impossible de copier le lien.');
   }
 });
+
+// ===================== ÉCRAN PROFIL =====================
+const profileScreen = document.getElementById('profile-screen');
+const btnBackProfile = document.getElementById('btn-back-profile');
+const profilePseudo = document.getElementById('profile-pseudo');
+const profileStatus = document.getElementById('profile-status');
+const profileActionBtn = document.getElementById('profile-action-btn');
+
+// ===== Navigation : onglet "Profil" depuis le lobby =====
+const lobbyProfileTab = lobbyScreen.querySelector('.tab-btn[data-tab="profile"]');
+if (lobbyProfileTab) {
+  lobbyProfileTab.addEventListener('click', () => {
+    openProfile(window.firebaseAuth?.currentUser?.displayName || 'moi', true);
+  });
+}
+
+// ===== Retour depuis l'écran Profil =====
+btnBackProfile.addEventListener('click', () => {
+  goToScreen(lobbyScreen);
+});
+
+// ===== Ouvrir un profil =====
+function openProfile(pseudo, isSelf = false) {
+  profilePseudo.textContent = pseudo;
+
+  if (isSelf) {
+    profileStatus.innerHTML = '<span class="status-dot online"></span> Toi';
+    profileActionBtn.textContent = '✏️ Modifier le profil';
+    profileActionBtn.classList.add('friend');
+  } else {
+    profileStatus.innerHTML = '<span class="status-dot online"></span> En ligne';
+    profileActionBtn.textContent = '+ Ajouter en ami';
+    profileActionBtn.classList.remove('friend');
+  }
+
+  goToScreen(profileScreen);
+}
+
+// ===== Action du bouton d'action =====
+profileActionBtn.addEventListener('click', () => {
+  if (profileActionBtn.textContent.includes('Ajouter')) {
+    showMessage('✅ Demande envoyée à ' + profilePseudo.textContent);
+    profileActionBtn.textContent = '⏳ En attente';
+    profileActionBtn.classList.add('friend');
+  } else if (profileActionBtn.textContent.includes('Modifier')) {
+    showMessage('✏️ Fonctionnalité à venir');
+  }
+});
+
+// ===================== DÉTECTION DU LIEN D'INVITATION =====================
+function checkInviteLink() {
+  const params = new URLSearchParams(window.location.search);
+  const invitePseudo = params.get('invite');
+
+  if (invitePseudo) {
+    // Stocke le pseudo pour l'utiliser après connexion
+    sessionStorage.setItem('pendingInvite', invitePseudo);
+
+    // Si déjà connecté → ouvrir le profil direct
+    if (window.firebaseAuth?.currentUser) {
+      setTimeout(() => openProfile(invitePseudo), 500);
+      sessionStorage.removeItem('pendingInvite');
+    }
+  }
+}
+
+// Vérifier après l'initialisation Firebase
+setTimeout(checkInviteLink, 1000);
+
+// Vérifier à chaque changement d'état (après connexion)
+if (window.firebaseAuth) {
+  window.firebaseAuth.onAuthStateChanged((user) => {
+    if (user) {
+      const pending = sessionStorage.getItem('pendingInvite');
+      if (pending) {
+        openProfile(pending);
+        sessionStorage.removeItem('pendingInvite');
+      }
+    }
+  });
+}

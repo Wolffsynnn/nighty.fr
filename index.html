@@ -397,6 +397,79 @@
       </nav>
     </div>
 
+    <!-- ===== ÉCRAN 7 : PROFIL ===== -->
+<div id="profile-screen" class="screen hidden">
+  <div class="bg-layer" style="background-image: url('https://i.imgur.com/HnNvpZJ.png');"></div>
+
+  <!-- Bouton Retour -->
+  <button id="btn-back-profile" class="back-btn" aria-label="Retour">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  </button>
+
+  <div class="profile-container">
+    <!-- En-tête -->
+    <div class="profile-header">
+      <div class="profile-avatar" id="profile-avatar">👤</div>
+      <h2 class="profile-pseudo" id="profile-pseudo">loup_alpha</h2>
+      <p class="profile-status" id="profile-status">
+        <span class="status-dot online"></span> En ligne
+      </p>
+      <button class="profile-action-btn" id="profile-action-btn">+ Ajouter en ami</button>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="profile-section">
+      <h3>📊 Statistiques</h3>
+      <div class="profile-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-games">42</span>
+          <span class="stat-label">Parties</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-wins">18</span>
+          <span class="stat-label">Victoires</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-ratio">43 %</span>
+          <span class="stat-label">Ratio</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Succès -->
+    <div class="profile-section">
+      <h3>🏆 Succès</h3>
+      <div class="profile-achievements">
+        <div class="achievement" title="Gagner une première partie">🥇 Premier sang</div>
+        <div class="achievement" title="Survivre 5 parties de suite">🥈 Survivant</div>
+        <div class="achievement" title="Dévorer 10 villageois">🥉 Loup affamé</div>
+      </div>
+    </div>
+
+    <!-- Historique -->
+    <div class="profile-section">
+      <h3>📜 Dernières parties</h3>
+      <div class="profile-history">
+        <div class="history-item">
+          <span>🏘️ Village du Corbeau</span>
+          <span class="history-result win">Victoire</span>
+        </div>
+        <div class="history-item">
+          <span>🏘️ Village de la Lune</span>
+          <span class="history-result lose">Défaite</span>
+        </div>
+        <div class="history-item">
+          <span>🏘️ Village des Ombres</span>
+          <span class="history-result win">Victoire</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
     <!-- ===== POPUP "COMMING SOON" ===== -->
     <div id="coming-soon-popup" class="popup-overlay hidden">
       <div class="popup-box">

@@ -1682,3 +1682,34 @@ body {
   color: #ff6666;
   background: rgba(255, 102, 102, 0.15);
 }
+/* ===================== MODE PAYSAGE FORCÉ (MOBILE) ===================== */
+@media (max-width: 900px) and (orientation: portrait) {
+  body {
+    overflow: hidden;
+  }
+
+  /* On fait pivoter tout le contenu de 90° */
+  #intro-screen,
+  #auth-screen,
+  #mode-screen,
+  #lobby-screen,
+  #public-games-screen,
+  #friends-screen,
+  #profile-screen,
+  #coming-soon-popup,
+  #global-tab-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vh;
+    height: 100vw;
+    transform: rotate(90deg) translateY(-100%);
+    transform-origin: top left;
+  }
+
+  /* La barre d'onglets se repositionne aussi */
+  #global-tab-bar {
+    width: 100vh !important;
+    height: auto !important;
+  }
+}

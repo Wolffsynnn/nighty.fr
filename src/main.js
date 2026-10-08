@@ -37,6 +37,8 @@ const gamesList      = document.getElementById('games-list');
 
 // ===================== BARRE D'ONGLETS GLOBALE =====================
 const globalTabBar  = document.getElementById('global-tab-bar');
+// Masquer la barre par défaut
+globalTabBar.classList.add('hidden');
 const globalTabBtns = globalTabBar.querySelectorAll('.tab-btn');
 
 function updateTabBarVisibility() {
@@ -46,6 +48,13 @@ function updateTabBarVisibility() {
     'friends-screen',
     'profile-screen',
   ];
+
+  // ⚠️ On ne montre JAMAIS la barre si on est sur intro/auth/mode
+  const activeScreenEl = document.querySelector('.screen:not(.hidden)');
+  if (!activeScreenEl) {
+    globalTabBar.classList.add('hidden');
+    return;
+  }
 
   const activeScreen = document.querySelector('.screen:not(.hidden)');
   if (!activeScreen) return;

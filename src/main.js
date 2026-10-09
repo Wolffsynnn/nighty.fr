@@ -848,17 +848,18 @@ safeOn(btnBackProfile, 'click', () => {
 async function openProfile(pseudo, isSelf = false) {
   if (profilePseudo) profilePseudo.textContent = pseudo;
 
+  const currentUser = window.firebaseAuth?.currentUser;
+  const { doc, getDoc, collection, getDocs } = await getFirestoreFns();
+
   if (isSelf) {
     if (profileStatus) profileStatus.innerHTML = '<span class="status-dot online"></span> Toi';
     if (profileActionBtn) {
       profileActionBtn.textContent = '✏️ Modifier le profil';
       profileActionBtn.classList.add('friend');
+      profileActionBtn.dataset.userid = '';
     }
 
-    const currentUser = window.firebaseAuth?.currentUser;
     if (currentUser) {
-      const { doc, getDoc } = await getFirestoreFns();
-
       try {
         const userDoc = await getDoc(doc(window.firebaseDB, 'users', currentUser.uid));
         if (userDoc.exists()) {
@@ -876,30 +877,166 @@ async function openProfile(pseudo, isSelf = false) {
         showMessage('❌ Erreur de chargement du profil');
       }
     }
-  } else {
-    if (profileStatus) profileStatus.innerHTML = '<span class="status-dot online"></span> En ligne';
-    if (profileActionBtn) {
-      profileActionBtn.textContent = '+ Ajouter en ami';
-      profileActionBtn.classList.remove('friend');
-    }
 
-    const elGames = document.getElementById('stat-games');
-    const elWins  = document.getElementById('stat-wins');
-    const elRatio = document.getElementById('stat-ratio');
-    if (elGames) elGames.textContent = 0;
-    if (elWins)  elWins.textContent  = 0;
-    if (elRatio) elRatio.textContent = '0 %';
+    goToScreen(profileScreen);
+    return;
   }
+
+  // ─── Pas soi-même : chercher l'user par pseudo ───
+  let targetUser = null;
+  try {
+    const usersSnap = await getDocs(collection(window.firebaseDB, 'users'));
+    usersSnap.forEach(d => {
+      const data = d.data();
+      if (data.pseudo === pseudo) {
+        targetUser = { id: d.id, ...data };
+      }
+    });
+  } catch (err) {
+    console.warn(err);
+  }
+
+  if (!targetUser) {
+    if (profileStatus) profileStatus.innerHTML = 'Utilisateur introuvable';
+    if (profileActionBtn) profileActionBtn.textContent = '-';
+    goToScreen(profileScreen);
+    return;
+  }
+
+  // ─── Vérifier le statut : ami / demande envoyée / demande reçue / rien ───
+  let status = 'none'; // 'none' | 'friend' | 'sent' | 'received'
+
+  if (currentUser) {
+    try {
+      // Vérifier si déjà amis
+      const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
+      friendshipsSnap.forEach(d => {
+        const data = d.data();
+        if (data.users && data.users.includes(currentUser.uid) && data.users.includes(targetUser.id)) {
+          status = 'friend';
+        }
+      });
+
+      // Vérifier si demande en cours
+      if (status === 'none') {
+        const reqSnap = await getDocs(collection(window.firebaseDB, 'friendRequests'));
+        reqSnap.forEach(d => {
+          const data = d.data();
+          if (data.from === currentUser.uid && data.to === targetUser.id) status = 'sent';
+          if (data.to === currentUser.uid && data.from === targetUser.id) status = 'received';
+        });
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
+  // ─── Afficher le statut de l'user ───
+  const friendStatus = getFriendStatus(targetUser);
+  const { label, cls } = getFriendStatusLabel(friendStatus);
+  if (profileStatus) {
+    profileStatus.innerHTML = `<span class="status-dot ${cls}"></span> ${label}`;
+  }
+
+  // ─── Adapter le bouton d'action ───
+  if (profileActionBtn) {
+    profileActionBtn.dataset.userid = targetUser.id;
+    profileActionBtn.classList.remove('friend');
+
+    if (status === 'friend') {
+      profileActionBtn.textContent = '✓ Ami';
+      profileActionBtn.classList.add('friend');
+      profileActionBtn.disabled = true;
+    } else if (status === 'sent') {
+      profileActionBtn.textContent = '⏳ En attente';
+      profileActionBtn.classList.add('friend');
+      profileActionBtn.disabled = true;
+    } else if (status === 'received') {
+      profileActionBtn.textContent = '✅ Accepter la demande';
+      profileActionBtn.disabled = false;
+    } else {
+      profileActionBtn.textContent = '+ Ajouter en ami';
+      profileActionBtn.disabled = false;
+    }
+  }
+
+  // ─── Stats ───
+  const stats = targetUser.stats || { games: 0, wins: 0, ratio: 0 };
+  const elGames = document.getElementById('stat-games');
+  const elWins  = document.getElementById('stat-wins');
+  const elRatio = document.getElementById('stat-ratio');
+  if (elGames) elGames.textContent = stats.games || 0;
+  if (elWins)  elWins.textContent  = stats.wins || 0;
+  if (elRatio) elRatio.textContent = (stats.ratio || 0) + ' %';
 
   goToScreen(profileScreen);
 }
 
-safeOn(profileActionBtn, 'click', () => {
+safeOn(profileActionBtn, 'click', async () => {
+  const currentUser = window.firebaseAuth?.currentUser;
+  if (!currentUser) return;
+
+  const targetId = profileActionBtn.dataset.userid;
+  if (!targetId) return;
+
+  const { doc, setDoc, deleteDoc, serverTimestamp, collection, getDocs } = await getFirestoreFns();
+
+  // ─── Cas 1 : Accepter une demande reçue ───
+  if (profileActionBtn.textContent.includes('Accepter')) {
+    try {
+      const friendshipId = [currentUser.uid, targetId].sort().join('_');
+      await setDoc(doc(window.firebaseDB, 'friendships', friendshipId), {
+        users: [currentUser.uid, targetId],
+        createdAt: serverTimestamp(),
+      });
+      // Supprime la demande
+      const reqId = `${targetId}_${currentUser.uid}`;
+      await deleteDoc(doc(window.firebaseDB, 'friendRequests', reqId));
+
+      showMessage('✅ Vous êtes maintenant amis !');
+      profileActionBtn.textContent = '✓ Ami';
+      profileActionBtn.classList.add('friend');
+      profileActionBtn.disabled = true;
+    } catch (err) {
+      showMessage('❌ ' + (err.code || err.message));
+    }
+    return;
+  }
+
+  // ─── Cas 2 : Envoyer une demande d'ami ───
   if (profileActionBtn.textContent.includes('Ajouter')) {
-    showMessage('✅ Demande envoyée à ' + profilePseudo.textContent);
-    profileActionBtn.textContent = '⏳ En attente';
-    profileActionBtn.classList.add('friend');
-  } else if (profileActionBtn.textContent.includes('Modifier')) {
+    // Vérifie limite 50 amis
+    const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
+    const myFriendsCount = friendshipsSnap.docs.filter(d =>
+      d.data().users && d.data().users.includes(currentUser.uid)
+    ).length;
+
+    if (myFriendsCount >= 50) {
+      showMessage('🐺 Ta meute est complète (50/50) !');
+      return;
+    }
+
+    try {
+      const reqId = `${currentUser.uid}_${targetId}`;
+      await setDoc(doc(window.firebaseDB, 'friendRequests', reqId), {
+        from: currentUser.uid,
+        fromPseudo: currentUser.displayName,
+        to: targetId,
+        toPseudo: profilePseudo.textContent,
+        createdAt: serverTimestamp(),
+      });
+      showMessage('✅ Demande envoyée à ' + profilePseudo.textContent);
+      profileActionBtn.textContent = '⏳ En attente';
+      profileActionBtn.classList.add('friend');
+      profileActionBtn.disabled = true;
+    } catch (err) {
+      showMessage('❌ ' + (err.code || err.message));
+    }
+    return;
+  }
+
+  // ─── Cas 3 : Modifier le profil (soi-même) ───
+  if (profileActionBtn.textContent.includes('Modifier')) {
     showMessage('✏️ Fonctionnalité à venir');
   }
 });

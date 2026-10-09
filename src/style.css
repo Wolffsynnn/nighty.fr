@@ -1684,3 +1684,259 @@ body {
     font-size: 0.8rem;
   }
 }
+/* ===================== CHECKBOXES POPUP CRÉATION ===================== */
+.cg-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 179, 71, 0.2);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.cg-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-family: 'Georgia', serif;
+  font-size: 0.9rem;
+  color: #d0d0d0;
+  user-select: none;
+}
+
+.cg-checkbox input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 179, 71, 0.5);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.cg-checkbox input[type="checkbox"]:checked {
+  background: #ffb347;
+  border-color: #ffb347;
+}
+
+.cg-checkbox input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a0a1a;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.cg-checkbox:hover span {
+  color: #ffb347;
+}
+
+/* Champ code caché par défaut */
+.cg-label.hidden {
+  display: none;
+}
+
+/* ===================== BANDEAU CODE/LIEN DANS LE LOBBY ===================== */
+.gl-share-bar {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(10, 10, 26, 0.85);
+  border: 1px solid rgba(255, 179, 71, 0.4);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  animation: cardAppear 0.4s ease-out;
+}
+
+.gl-share-bar.hidden {
+  display: none;
+}
+
+.gl-share-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Georgia', serif;
+  font-size: 0.9rem;
+  color: #ffb347;
+}
+
+.gl-share-item.hidden {
+  display: none;
+}
+
+.gl-share-label {
+  opacity: 0.85;
+}
+
+.gl-share-value {
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  color: #ffe6b3;
+  text-shadow: 0 0 8px rgba(255, 179, 71, 0.5);
+  padding: 3px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 179, 71, 0.3);
+}
+
+.gl-share-copy {
+  padding: 6px 10px;
+  font-family: 'Georgia', serif;
+  font-size: 0.85rem;
+  color: #ffb347;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 179, 71, 0.4);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gl-share-copy:hover {
+  background: #ffb347;
+  color: #0a0a1a;
+  box-shadow: 0 0 12px rgba(255, 150, 50, 0.6);
+}
+
+/* Décalage de la topbar pour ne pas chevaucher le bandeau */
+.gl-share-bar:not(.hidden) ~ .game-lobby-topbar,
+body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
+  top: 90px;
+}
+
+/* ===================== CARTES DE PARTIES (COULEURS) ===================== */
+.game-card {
+  position: relative;
+  padding: 16px 20px;
+  background: rgba(10, 10, 26, 0.85);
+  border: 2px solid rgba(255, 179, 71, 0.35);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.25s ease;
+  animation: cardAppear 0.4s ease-out;
+  cursor: pointer;
+}
+
+/* 🟣 VIOLET : -1/4 des joueurs (presque vide) */
+.game-card.status-purple {
+  border-color: #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+}
+
+.game-card.status-purple:hover {
+  box-shadow: 0 0 22px rgba(168, 85, 247, 0.5);
+  transform: translateY(-2px);
+}
+
+.game-card.status-purple .game-card-header {
+  color: #c084fc;
+}
+
+/* 🔵 BLEU : +1/4 des joueurs, rejoignable */
+.game-card.status-blue {
+  border-color: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+.game-card.status-blue:hover {
+  box-shadow: 0 0 22px rgba(59, 130, 246, 0.55);
+  transform: translateY(-2px);
+}
+
+.game-card.status-blue .game-card-header {
+  color: #60a5fa;
+}
+
+.game-card.status-blue .game-card-join {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.game-card.status-blue .game-card-join:hover {
+  background: #60a5fa;
+}
+
+/* 🔴 ROUGE : complète, en cours de lancement */
+.game-card.status-red {
+  border-color: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.game-card.status-red .game-card-header {
+  color: #f87171;
+}
+
+.game-card.status-red .game-card-join {
+  background: #ef4444;
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.game-card.status-red .game-card-join:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+/* Badge "code requis" pour les parties privées */
+.game-card-badge {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid currentColor;
+}
+
+.game-card.status-purple .game-card-badge { color: #c084fc; }
+.game-card.status-blue   .game-card-badge { color: #60a5fa; }
+.game-card.status-red    .game-card-badge { color: #f87171; }
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 900px) {
+  .gl-share-bar {
+    top: 12px;
+    padding: 8px 10px;
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+
+  .gl-share-value {
+    font-size: 0.8rem;
+    padding: 2px 6px;
+  }
+
+  .gl-share-copy {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+
+  body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
+    top: 70px;
+  }
+}

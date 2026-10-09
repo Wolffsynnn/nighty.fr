@@ -1925,3 +1925,66 @@ body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
     top: 70px;
   }
 }
+/* ===================== STATUT EN LIGNE DES AMIS ===================== */
+.friend-card {
+  cursor: pointer;
+  position: relative;
+}
+
+.friend-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #c8c8c8;
+  margin-top: 2px;
+}
+
+.friend-card-status .status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #555;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.friend-card-status .status-dot.online {
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
+}
+
+.friend-card-status .status-dot.waiting {
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+}
+
+.friend-card-status .status-dot.playing {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.friend-card-status .status-dot.offline {
+  background: #555;
+  box-shadow: none;
+}
+
+/* Bouton "Rejoindre" à côté de l'ami */
+.friend-join-btn {
+  padding: 6px 14px;
+  font-family: 'Georgia', serif;
+  font-size: 0.78rem;
+  color: #0a0a1a;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.friend-join-btn:hover {
+  background: #60a5fa;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+  transform: translateY(-1px);
+}

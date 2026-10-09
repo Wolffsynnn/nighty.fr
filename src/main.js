@@ -203,6 +203,8 @@ async function initFirebase() {
 
       // Vérifie si un lien de partie est dans l'URL ou en attente
       checkGameLink();
+            // Enregistre la présence
+            initPresence();
     } else {
       showMessage('👤 Aucun utilisateur connecté');
     }
@@ -586,7 +588,9 @@ function renderFriendCard(userId, pseudo, state, requestId = '') {
 
 function attachFriendCardActions() {
   document.querySelectorAll('.friend-card .action-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // Évite le clic sur la carte parent
+
       const card = btn.closest('.friend-card');
       const userId = card.dataset.userid;
       const pseudo = card.dataset.pseudo;
@@ -596,9 +600,20 @@ function attachFriendCardActions() {
       const user = window.firebaseAuth?.currentUser;
       if (!user) return;
 
-      const { doc, setDoc, deleteDoc, serverTimestamp } = await getFirestoreFns();
+      const { doc, setDoc, deleteDoc, serverTimestamp, collection, getDocs } = await getFirestoreFns();
 
       if (action === 'add') {
+        // Vérifie la limite d'amis
+        const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
+        const myFriendsCount = friendshipsSnap.docs.filter(d =>
+          d.data().users && d.data().users.includes(user.uid)
+        ).length;
+
+        if (myFriendsCount >= 50) {
+          showMessage('🐺 Ta meute est complète (50/50) ! Retire un ami pour en ajouter un autre.');
+          return;
+        }
+
         const reqId = `${user.uid}_${userId}`;
         await setDoc(doc(window.firebaseDB, 'friendRequests', reqId), {
           from: user.uid,
@@ -1058,6 +1073,7 @@ async function joinGame(gameId) {
     });
 
     currentGameId = gameId;
+    updatePresence('waiting', gameId);
     showMessage('✅ Tu as rejoint la partie !');
     goToScreen(gameLobbyScreen);
     watchGame(gameId);
@@ -1094,6 +1110,9 @@ async function watchGame(gameId) {
     const data = snap.data();
     currentGameData = data;
     currentPlayerSlots = data.playerSlots || {};
+        // Met à jour la présence selon le statut de la partie
+        if (data.status === 'waiting') updatePresence('waiting', gameId);
+        if (data.status === 'playing') updatePresence('playing', gameId);
 
     renderGameLobby(data);
   });
@@ -1557,6 +1576,7 @@ async function leaveGame() {
       gameUnsubscribe = null;
     }
 
+    updatePresence('online', null);
     currentGameId = null;
     currentGameData = null;
     goToScreen(publicGamesScreen);
@@ -1568,3 +1588,77 @@ async function leaveGame() {
 
 safeOn(btnLeaveGame, 'click', leaveGame);
 safeOn(btnBackGameLobby, 'click', leaveGame);
+// ═══════════════════════════════════════════════════════════
+// SYSTÈME DE PRÉSENCE (EN LIGNE / EN PARTIE / HORS LIGNE)
+// ═══════════════════════════════════════════════════════════
+
+const MAX_FRIENDS = 50;
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
+// ─── Mise à jour du statut de présence ───
+async function updatePresence(status, gameId = null) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  try {
+    const updates = {
+      lastSeen: Date.now(),
+      currentGameStatus: status,   // 'online' | 'waiting' | 'playing' | 'offline'
+      currentGameId: gameId,
+    };
+    await updateDoc(doc(window.firebaseDB, 'users', user.uid), updates);
+  } catch (err) {
+    // Silencieux : pas grave si ça échoue
+    console.warn('Erreur updatePresence:', err);
+  }
+}
+
+// ─── Heartbeat toutes les 60 secondes ───
+setInterval(() => {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  // Si on est dans une partie, garde le statut actuel, sinon 'online'
+  if (currentGameData) {
+    const status = currentGameData.status === 'waiting' ? 'waiting' : 'playing';
+    updatePresence(status, currentGameId);
+  } else {
+    updatePresence('online', null);
+  }
+}, 60 * 1000);
+
+// ─── Mise à jour immédiate à la connexion ───
+async function initPresence() {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+  await updatePresence('online', null);
+}
+
+// ─── Calcul du statut à afficher à partir des données user ───
+function getFriendStatus(userData) {
+  if (!userData) return 'offline';
+
+  const lastSeen = userData.lastSeen || 0;
+  const now = Date.now();
+
+  // Hors ligne si pas d'activité depuis 2 min
+  if (now - lastSeen > ONLINE_TIMEOUT_MS) return 'offline';
+
+  const status = userData.currentGameStatus;
+  if (status === 'waiting') return 'waiting';
+  if (status === 'playing') return 'playing';
+  return 'online';
+}
+
+// ─── Libellé + couleur du statut ───
+function getFriendStatusLabel(status) {
+  if (status === 'online')   return { label: 'En ligne',     cls: 'online' };
+  if (status === 'waiting')  return { label: 'En attente',   cls: 'waiting' };
+  if (status === 'playing')  return { label: 'En partie',    cls: 'playing' };
+  return { label: 'Hors ligne', cls: 'offline' };
+}
+
+// ─── Enregistre la présence après connexion ───
+// (appelé depuis onAuthStateChanged un peu plus bas)

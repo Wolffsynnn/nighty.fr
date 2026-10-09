@@ -160,6 +160,12 @@
           </button>
         </div>
 
+        <!-- Onglets Public / Privé -->
+        <div class="games-tabs">
+          <button class="games-tab active" data-games-tab="public">🌐 Publiques</button>
+          <button class="games-tab" data-games-tab="private">🔒 Privées</button>
+        </div>
+
         <div class="games-list" id="games-list">
           <p class="games-empty">Aucune partie disponible pour le moment...</p>
         </div>
@@ -361,6 +367,24 @@
     </div>
   </div>
 
+    <!-- ===== POPUP DEMANDE DE CODE (partie privée) ===== -->
+    <div id="enter-code-popup" class="popup-overlay hidden">
+      <div class="popup-box">
+        <h3>Partie privée</h3>
+        <p>Entre le code pour rejoindre cette partie.</p>
+  
+        <label class="cg-label">
+          <span>Code de la partie</span>
+          <input type="text" id="ec-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
+        </label>
+  
+        <div class="popup-actions">
+          <button id="ec-cancel" class="popup-btn secondary">Annuler</button>
+          <button id="ec-join" class="popup-btn primary">Rejoindre</button>
+        </div>
+      </div>
+    </div>
+    
   <!-- ===== POPUP "COMMING SOON" ===== -->
   <div id="coming-soon-popup" class="popup-overlay hidden">
     <div class="popup-box">

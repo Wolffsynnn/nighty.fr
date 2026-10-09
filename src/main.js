@@ -47,6 +47,8 @@ const btnBackMode     = document.getElementById('btn-back-mode');
 const btnBackGames    = document.getElementById('btn-back-games');
 const btnRefreshGames = document.getElementById('btn-refresh-games');
 const gamesList       = document.getElementById('games-list');
+const gamesTabs       = document.querySelectorAll('.games-tab');
+let currentGamesTab   = 'public';   // 'public' ou 'private'
 
 // ===================== BARRE D'ONGLETS GLOBALE =====================
 const globalTabBar  = document.getElementById('global-tab-bar');
@@ -303,6 +305,19 @@ safeOn(btnRefreshGames, 'click', () => {
   btnRefreshGames.classList.add('spinning');
   setTimeout(() => btnRefreshGames.classList.remove('spinning'), 800);
   loadPublicGames();
+});
+
+// ═══════════════════════════════════════════════════════════
+// ONGLETS PUBLIQUES / PRIVÉES
+// ═══════════════════════════════════════════════════════════
+gamesTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    gamesTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    currentGamesTab = tab.dataset.gamesTab;
+    loadGames();
+  });
 });
 
 // ===================== SHADER =====================
@@ -784,6 +799,12 @@ const btnLeaveGame      = document.getElementById('btn-leave-game');
 const btnInviteGame     = document.getElementById('btn-invite-game');
 const glVillageName     = document.getElementById('gl-village-name');
 const glPlayersCount    = document.getElementById('gl-players-count');
+// Popup code pour parties privées
+const enterCodePopup = document.getElementById('enter-code-popup');
+const ecCode         = document.getElementById('ec-code');
+const ecCancel       = document.getElementById('ec-cancel');
+const ecJoin         = document.getElementById('ec-join');
+let pendingPrivateGameId = null;
 
 let currentGameId = null;
 let currentGameData = null;
@@ -830,6 +851,61 @@ safeOn(btnCreateGame, 'click', () => {
 safeOn(cgCancel, 'click', () => {
   if (createGamePopup) createGamePopup.classList.add('hidden');
 });
+// ═══════════════════════════════════════════════════════════
+// POPUP CODE PARTIE PRIVÉE
+// ═══════════════════════════════════════════════════════════
+safeOn(ecCancel, 'click', () => {
+  if (enterCodePopup) enterCodePopup.classList.add('hidden');
+  pendingPrivateGameId = null;
+});
+
+safeOn(ecJoin, 'click', async () => {
+  const code = ecCode?.value.trim();
+  if (!code) {
+    showMessage('❌ Entre un code.');
+    return;
+  }
+
+  if (!pendingPrivateGameId) {
+    showMessage('❌ Erreur : partie inconnue.');
+    return;
+  }
+
+  const { doc, getDoc } = await getFirestoreFns();
+
+  try {
+    const gameDoc = await getDoc(doc(window.firebaseDB, 'games', pendingPrivateGameId));
+    if (!gameDoc.exists()) {
+      showMessage('❌ Partie introuvable.');
+      if (enterCodePopup) enterCodePopup.classList.add('hidden');
+      return;
+    }
+
+    const data = gameDoc.data();
+    if (data.code !== code) {
+      showMessage('❌ Code incorrect.');
+      return;
+    }
+
+    // Code bon → rejoint
+    if (enterCodePopup) enterCodePopup.classList.add('hidden');
+    const gameId = pendingPrivateGameId;
+    pendingPrivateGameId = null;
+    await joinGame(gameId);
+
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+});
+
+// Entrée pour valider
+safeOn(ecCode, 'keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    ecJoin?.click();
+  }
+});
+
 
 // ═══════════════════════════════════════════════════════════
 // CRÉATION DE LA PARTIE
@@ -1294,23 +1370,34 @@ safeOn(glChatInput, 'keydown', (e) => {
 // ═══════════════════════════════════════════════════════════
 let publicGamesUnsubscribe = null;
 
-async function loadPublicGames() {
+let publicGamesUnsubscribe = null;
+let privateGamesUnsubscribe = null;
+
+async function loadGames() {
   if (!gamesList) return;
 
   const { collection, onSnapshot, query, where } = await getFirestoreFns();
 
+  // Nettoie les anciens listeners
   if (publicGamesUnsubscribe) {
     publicGamesUnsubscribe();
     publicGamesUnsubscribe = null;
   }
+  if (privateGamesUnsubscribe) {
+    privateGamesUnsubscribe();
+    privateGamesUnsubscribe = null;
+  }
+
+  // Requête selon l'onglet actif
+  const typeFilter = currentGamesTab === 'public' ? 'public' : 'private';
 
   const q = query(
     collection(window.firebaseDB, 'games'),
-    where('type', '==', 'public'),
+    where('type', '==', typeFilter),
     where('status', '==', 'waiting')
   );
 
-  publicGamesUnsubscribe = onSnapshot(q, (snap) => {
+  const handler = (snap) => {
     const games = [];
     const now = Date.now();
     const MAX_AGE_MS = 2 * 60 * 60 * 1000;
@@ -1334,15 +1421,30 @@ async function loadPublicGames() {
       return tb - ta;
     });
 
-    renderPublicGames(games);
-  });
+    renderGames(games);
+  };
+
+  if (typeFilter === 'public') {
+    publicGamesUnsubscribe = onSnapshot(q, handler);
+  } else {
+    privateGamesUnsubscribe = onSnapshot(q, handler);
+  }
 }
 
-function renderPublicGames(games) {
+// Wrapper pour compat avec les appels existants
+function loadPublicGames() {
+  loadGames();
+}
+
+function renderGames(games) {
   if (!gamesList) return;
 
+  const isPrivateTab = currentGamesTab === 'private';
+
   if (games.length === 0) {
-    gamesList.innerHTML = '<p class="games-empty">Aucune partie disponible pour le moment...</p>';
+    gamesList.innerHTML = isPrivateTab
+      ? '<p class="games-empty">Aucune partie privée disponible...</p>'
+      : '<p class="games-empty">Aucune partie publique disponible...</p>';
     return;
   }
 
@@ -1365,8 +1467,7 @@ function renderPublicGames(games) {
       label = '🟣 Presque vide';
     }
 
-    const isPrivate = g.type === 'private';
-    const badge = isPrivate ? '<span class="game-card-badge">🔒 Code requis</span>' : '';
+    const badge = isPrivateTab ? '<span class="game-card-badge">🔒 Privée</span>' : '';
 
     return `
       <div class="game-card ${statusClass}" data-gameid="${g.id}" ${count >= max ? 'data-full="true"' : ''}>
@@ -1377,7 +1478,7 @@ function renderPublicGames(games) {
           <span>👑 ${g.hostPseudo || '?'}</span>
           <span>${label}</span>
         </div>
-        ${isPrivate ? '' : `<button class="game-card-join" ${count >= max ? 'disabled' : ''}>Rejoindre</button>`}
+        <button class="game-card-join" ${count >= max ? 'disabled' : ''}>Rejoindre</button>
       </div>
     `;
   }).join('');
@@ -1386,7 +1487,21 @@ function renderPublicGames(games) {
     card.addEventListener('click', () => {
       if (card.dataset.full === 'true') return;
       const gameId = card.dataset.gameid;
-      joinGame(gameId);
+
+      // Si partie privée → demande le code
+      if (isPrivateTab) {
+        pendingPrivateGameId = gameId;
+        if (enterCodePopup) {
+          enterCodePopup.classList.remove('hidden');
+          if (ecCode) {
+            ecCode.value = '';
+            ecCode.focus();
+          }
+        }
+      } else {
+        // Partie publique → rejoint direct
+        joinGame(gameId);
+      }
     });
   });
 }

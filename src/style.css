@@ -1975,3 +1975,39 @@ body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
   font-weight: bold;
   box-shadow: 0 0 15px rgba(255, 150, 50, 0.5);
 }
+/* ===================== ONGLETS PUBLIQUES / PRIVÉES ===================== */
+.games-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 4px;
+  background: rgba(10, 10, 26, 0.6);
+  border: 1px solid rgba(255, 179, 71, 0.25);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  margin-bottom: 12px;
+}
+
+.games-tab {
+  flex: 1;
+  padding: 10px 16px;
+  font-family: 'Georgia', serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: #c8c8c8;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.games-tab:hover {
+  color: #ffb347;
+}
+
+.games-tab.active {
+  background: #ffb347;
+  color: #0a0a1a;
+  font-weight: bold;
+  box-shadow: 0 0 15px rgba(255, 150, 50, 0.5);
+}

@@ -308,6 +308,7 @@
 
     <div class="game-lobby-bottombar">
       <button id="btn-invite-game" class="gl-btn">🔗 Inviter</button>
+      <button id="btn-start-game" class="gl-btn hidden">▶️ Lancer la partie</button>
       <button id="btn-leave-game" class="gl-btn danger">🚪 Quitter</button>
     </div>
   </div>
@@ -367,23 +368,90 @@
     </div>
   </div>
 
-    <!-- ===== POPUP DEMANDE DE CODE (partie privée) ===== -->
-    <div id="enter-code-popup" class="popup-overlay hidden">
-      <div class="popup-box">
-        <h3>Partie privée</h3>
-        <p>Entre le code pour rejoindre cette partie.</p>
-  
-        <label class="cg-label">
-          <span>Code de la partie</span>
-          <input type="text" id="ec-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
-        </label>
-  
-        <div class="popup-actions">
-          <button id="ec-cancel" class="popup-btn secondary">Annuler</button>
-          <button id="ec-join" class="popup-btn primary">Rejoindre</button>
-        </div>
+  <!-- ===== POPUP DEMANDE DE CODE (partie privée) ===== -->
+  <div id="enter-code-popup" class="popup-overlay hidden">
+    <div class="popup-box">
+      <h3>Partie privée</h3>
+      <p>Entre le code pour rejoindre cette partie.</p>
+
+      <label class="cg-label">
+        <span>Code de la partie</span>
+        <input type="text" id="ec-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
+      </label>
+
+      <div class="popup-actions">
+        <button id="ec-cancel" class="popup-btn secondary">Annuler</button>
+        <button id="ec-join" class="popup-btn primary">Rejoindre</button>
       </div>
     </div>
+  </div>
+
+  <!-- ===== POPUP COMPOSITION DES RÔLES ===== -->
+  <div id="composition-popup" class="popup-overlay hidden">
+    <div class="composition-box">
+
+      <!-- Header -->
+      <div class="composition-header">
+        <span class="comp-badge">⏳ En attente</span>
+        <span class="comp-count"><span id="comp-count-current">0</span> / <span id="comp-count-max">8</span></span>
+        <button id="comp-close" class="comp-close" title="Fermer">✖</button>
+      </div>
+
+      <!-- Rôles sélectionnés (bandeau haut) -->
+      <div class="composition-selected" id="comp-selected">
+        <p class="comp-empty-selected">Aucun rôle sélectionné pour le moment.</p>
+      </div>
+
+      <!-- Liste des rôles -->
+      <div class="composition-scroll">
+        <h3 class="comp-section-title">Rôles de base</h3>
+        <div class="composition-grid" id="comp-grid-base"></div>
+
+        <h3 class="comp-section-title">Variantes</h3>
+        <div class="composition-grid" id="comp-grid-variants"></div>
+
+        <h3 class="comp-section-title">Nightmares</h3>
+        <div class="composition-grid" id="comp-grid-nightmares"></div>
+
+        <h3 class="comp-section-title">✨ Rôles secondaires</h3>
+        <div class="comp-secondaires">
+
+          <div class="comp-option">
+            <label class="comp-option-label">👼 Ange</label>
+            <div class="comp-radio-group" data-option="ange">
+              <button class="comp-radio" data-value="none">Aucun</button>
+              <button class="comp-radio" data-value="ange-gardien">Gardien</button>
+              <button class="comp-radio" data-value="ange-dechu">Déchu</button>
+            </div>
+          </div>
+
+          <div class="comp-option">
+            <label class="comp-option-label">👑 Maire</label>
+            <div class="comp-radio-group" data-option="maire">
+              <button class="comp-radio" data-value="none">Aucun</button>
+              <button class="comp-radio" data-value="maire-1-0">Maire 1.0</button>
+              <button class="comp-radio" data-value="maire-2-0">Maire 2.0</button>
+            </div>
+          </div>
+
+          <div class="comp-option" id="comp-adjoint-option" style="display:none;">
+            <label class="comp-option-label">🎖️ Adjoint</label>
+            <div class="comp-radio-group" data-option="adjoint">
+              <button class="comp-radio" data-value="non">Non</button>
+              <button class="comp-radio" data-value="oui">Oui</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="composition-footer">
+        <button id="comp-validate" class="comp-validate">✅ Valider la composition</button>
+      </div>
+
+    </div>
+  </div>
 
   <!-- ===== POPUP "COMMING SOON" ===== -->
   <div id="coming-soon-popup" class="popup-overlay hidden">

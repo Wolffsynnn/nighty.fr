@@ -1,26 +1,3 @@
-// ═══════════════════════════════════════════════════════════
-// IMPORTS (rôles + mots)
-// ═══════════════════════════════════════════════════════════
-import {
-  ROLES_BASE,
-  ROLES_VARIANTES,
-  ROLES_NIGHTMARES,
-  TOUS_LES_ROLES,
-  getRoleById,
-} from './roles/index.js';
-
-import {
-  MOTS_LOUP_BAVARD,
-  TEXTES_NIGHTMARES,
-  TEXTES_MARIONNETTISTE,
-  TEXTES_NECROMANCIEN,
-  TEXTE_RODEUR,
-  TEXTE_FOSSOYeur,
-  PSEUDOS_LOUPS_ANONYMES,
-  choisirAleatoire,
-  contientMotCache,
-} from './data/mots.js';
-
 // ===== DEBUG VISUEL =====
 window.onerror = function (msg) {
   const el = document.getElementById('debug-message');
@@ -55,6 +32,11 @@ function safeOn(el, event, cb) {
 
 let blockAutoRedirect = false;
 
+// ⬇️⬇️⬇️ DÉCLARÉ EN HAUT (fix du bug "before initialization")
+let choixAnge = 'none';
+let choixMaire = 'none';
+let choixAdjoint = 'non';
+
 // ===== RÉCUPÉRATION DES ÉCRANS =====
 const introScreen       = document.getElementById('intro-screen');
 const authScreen        = document.getElementById('auth-screen');
@@ -73,6 +55,59 @@ const gamesList       = document.getElementById('games-list');
 const gamesTabs       = document.querySelectorAll('.games-tab');
 let currentGamesTab   = 'public';
 
+// ═══════════════════════════════════════════════════════════
+// 📚 RÔLES (intégrés directement, pas de fichier externe)
+// ═══════════════════════════════════════════════════════════
+const ROLES_BASE = [
+  { id: 'simple-villageois', nom: 'Simple Villageois', emoji: '🧑‍🌾', camp: 'village', estUnique: false, description: 'Habitant sans pouvoir. Vote le jour pour démasquer les loups.' },
+  { id: 'loup-garou',        nom: 'Loup-Garou',        emoji: '🐺', camp: 'loups',   estUnique: false, description: 'Se réveille chaque nuit avec sa meute pour éliminer un joueur.' },
+  { id: 'voyante',           nom: 'Voyante',           emoji: '🔮', camp: 'village', estUnique: true,  description: 'Découvre le rôle exact d\'un joueur chaque nuit.' },
+  { id: 'sorciere',          nom: 'Sorcière',          emoji: '🧪', camp: 'village', estUnique: true,  description: 'Deux potions : une pour sauver, une pour tuer.' },
+  { id: 'loup-noir',         nom: 'Loup Noir',         emoji: '🖤', camp: 'loups',   estUnique: true,  description: 'Peut infecter une victime une fois par partie.' },
+  { id: 'loup-bavard',       nom: 'Loup Bavard',       emoji: '🗣️', camp: 'loups',   estUnique: true,  description: 'Doit cacher un mot chaque jour dans le chat.' },
+  { id: 'loup-blanc',        nom: 'Loup Blanc',        emoji: '🤍', camp: 'neutre',  estUnique: true,  description: 'Faux allié des loups. Gagne seul.' },
+  { id: 'petite-fille-classique', nom: 'Petite Fille Classique', emoji: '👧', camp: 'village', estUnique: true, description: 'Espionne le chat des loups.' },
+  { id: 'chasseur',          nom: 'Chasseur',          emoji: '🏹', camp: 'village', estUnique: true,  description: 'À sa mort, emporte un joueur avec lui.' },
+  { id: 'garde',             nom: 'Garde',             emoji: '🛡️', camp: 'village', estUnique: true,  description: 'Protège un joueur chaque nuit.' },
+  { id: 'cupidon',           nom: 'Cupidon',           emoji: '💘', camp: 'village', estUnique: true,  description: 'Unit 2 joueurs la première nuit.' },
+  { id: 'mentaliste',        nom: 'Mentaliste',        emoji: '🧠', camp: 'village', estUnique: true,  description: 'Perçoit l\'issue du vote avant la fin.' },
+  { id: 'necromancien',      nom: 'Nécromancien',      emoji: '💀', camp: 'village', estUnique: true,  description: 'Parle aux morts chaque nuit.' },
+  { id: 'fossoyeur',         nom: 'Fossoyeur',         emoji: '⚰️', camp: 'village', estUnique: true,  description: 'À sa mort, révèle 2 joueurs dont un loup.' },
+];
+
+const ROLES_VARIANTES = [
+  { id: 'petite-fille-2-0',   nom: 'Petite Fille 2.0',   emoji: '👧', camp: 'village', estUnique: true,  description: 'Espionne ET parle aux loups anonymement.' },
+  { id: 'voyante-bavarde',    nom: 'Voyante Bavarde',    emoji: '🗣️🔮', camp: 'village', estUnique: true,  description: 'Voit un rôle, le village apprend le rôle (sans le pseudo).' },
+];
+
+const ROLES_NIGHTMARES = [
+  { id: 'nightmares-original', nom: 'Nightmares (Original)', emoji: '🌑', camp: 'nightmares', estUnique: true, description: 'Marque un joueur chaque nuit. Mort au tour suivant.' },
+  { id: 'rodeur',              nom: 'Le Rodeur',              emoji: '🌫️', camp: 'nightmares', estUnique: true, description: 'Rode 2 nuits. Sa cible doit le tuer sinon elle meurt.' },
+  { id: 'marionettiste',       nom: 'La Marionettiste',       emoji: '🎭', camp: 'nightmares', estUnique: true, description: 'Contrôle un joueur et utilise son pouvoir.' },
+];
+
+// ═══════════════════════════════════════════════════════════
+// 📋 COMPOSITIONS PRÉDÉFINIES (5 à 16 joueurs)
+// ═══════════════════════════════════════════════════════════
+const COMPOS_PREDEFINIES = {
+  5:  ['loup-garou', 'voyante', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  6:  ['loup-garou', 'voyante', 'sorciere', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  7:  ['loup-garou', 'loup-garou', 'voyante', 'sorciere', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  8:  ['loup-garou', 'loup-garou', 'voyante', 'sorciere', 'garde', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  9:  ['loup-garou', 'loup-garou', 'voyante', 'sorciere', 'garde', 'chasseur', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  10: ['loup-garou', 'loup-garou', 'loup-noir', 'voyante', 'sorciere', 'garde', 'chasseur', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  11: ['loup-garou', 'loup-garou', 'loup-garou', 'voyante', 'sorciere', 'garde', 'chasseur', 'cupidon', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  12: ['loup-garou', 'loup-garou', 'loup-garou', 'loup-noir', 'voyante', 'sorciere', 'garde', 'chasseur', 'cupidon', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  13: ['loup-garou', 'loup-garou', 'loup-garou', 'loup-noir', 'voyante', 'sorciere', 'garde', 'chasseur', 'cupidon', 'mentaliste', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  14: ['loup-garou', 'loup-garou', 'loup-garou', 'loup-noir', 'loup-bavard', 'voyante', 'sorciere', 'garde', 'chasseur', 'cupidon', 'mentaliste', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
+  15: ['loup-garou', 'loup-garou', 'loup-garou', 'loup-garou', 'loup-noir', 'loup-bavard', 'voyante', 'sorciere', 'garde', 'chasseur', 'cupidon', 'mentaliste', 'necromancien', 'simple-villageois', 'simple-villageois'],
+  16: ['loup-garou', 'loup-garou', 'loup-garou', 'loup-garou', 'loup-noir', 'loup-bavard', 'loup-blanc', 'voyante', 'sorciere', 'garde', 'chasseur', 'cupidon', 'mentaliste', 'necromancien', 'fossoyeur', 'simple-villageois'],
+};
+
+function getRoleById(id) {
+  return [...ROLES_BASE, ...ROLES_VARIANTES, ...ROLES_NIGHTMARES].find(r => r.id === id) || null;
+}
+
 // ===================== BARRE D'ONGLETS GLOBALE =====================
 const globalTabBar  = document.getElementById('global-tab-bar');
 const globalTabBtns = globalTabBar ? globalTabBar.querySelectorAll('.tab-btn') : [];
@@ -82,12 +117,7 @@ if (globalTabBar) globalTabBar.classList.add('hidden');
 function updateTabBarVisibility() {
   if (!globalTabBar) return;
 
-  const screensWithTabBar = [
-    'lobby-screen',
-    'public-games-screen',
-    'friends-screen',
-    'profile-screen',
-  ];
+  const screensWithTabBar = ['lobby-screen', 'public-games-screen', 'friends-screen', 'profile-screen'];
 
   const activeScreen = document.querySelector('.screen:not(.hidden)');
   if (!activeScreen) return;
@@ -1377,8 +1407,8 @@ function renderGameLobby(data) {
 
   renderChat(data.messages || []);
 
-  // ⬇️ AJOUT : Met à jour le bouton Lancer
   if (typeof majBoutonLancer === 'function') majBoutonLancer();
+  if (typeof majBoutonsMaxPlayers === 'function') majBoutonsMaxPlayers();
 }
 
 function renderShareBar(data) {
@@ -1808,7 +1838,7 @@ safeOn(btnLeaveGame, 'click', leaveGame);
 safeOn(btnBackGameLobby, 'click', leaveGame);
 
 // ═══════════════════════════════════════════════════════════
-// 🎯 ÉTAPE 1 : COMPOSITION + LANCEMENT DE PARTIE
+// 🎯 COMPOSITION + LANCEMENT
 // ═══════════════════════════════════════════════════════════
 
 const compositionPopup   = document.getElementById('composition-popup');
@@ -1822,9 +1852,9 @@ const compGridVariants   = document.getElementById('comp-grid-variants');
 const compGridNightmares = document.getElementById('comp-grid-nightmares');
 const btnStartGame       = document.getElementById('btn-start-game');
 const btnComposition     = document.getElementById('btn-composition');
+const compAdjointOption  = document.getElementById('comp-adjoint-option');
 
 let compositionLocale = [];
-let compositionValidee = false;
 
 safeOn(btnComposition, 'click', () => {
   const user = window.firebaseAuth?.currentUser;
@@ -1835,20 +1865,49 @@ safeOn(btnComposition, 'click', () => {
     return;
   }
 
-  compositionLocale = currentGameData.composition || [];
-  compositionValidee = currentGameData.compositionValidee || false;
+  // Si pas encore de compo → charge la compo prédéfinie
+  if (!currentGameData.composition || currentGameData.composition.length === 0) {
+    const preset = COMPOS_PREDEFINIES[currentGameData.maxPlayers] || [];
+    compositionLocale = [...preset];
+  } else {
+    compositionLocale = currentGameData.composition;
+  }
+
+  // Recharge les rôles secondaires
+  const sec = currentGameData.secondaires || {};
+  choixAnge = sec.ange || 'none';
+  choixMaire = sec.maire || 'none';
+  choixAdjoint = sec.adjoint || 'non';
+
+  document.querySelectorAll('.comp-radio-group').forEach(group => {
+    const option = group.dataset.option;
+    group.querySelectorAll('.comp-radio').forEach(b => b.classList.remove('active'));
+
+    let val = 'none';
+    if (option === 'ange') val = choixAnge;
+    if (option === 'maire') val = choixMaire;
+    if (option === 'adjoint') val = choixAdjoint;
+
+    const activeBtn = group.querySelector(`[data-value="${val}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+  });
+
+  if (compAdjointOption) {
+    compAdjointOption.style.display = (choixMaire === 'maire-2-0') ? 'flex' : 'none';
+  }
 
   if (compCountMax) compCountMax.textContent = currentGameData.maxPlayers;
 
   renderCompositionPopup();
-  compositionPopup.classList.remove('hidden');
+  if (compositionPopup) compositionPopup.classList.remove('hidden');
 });
 
 safeOn(compClose, 'click', () => {
-  compositionPopup.classList.add('hidden');
+  if (compositionPopup) compositionPopup.classList.add('hidden');
 });
 
 function renderCompositionPopup() {
+  const compCountPlayers = document.getElementById('comp-count-players');
   const max = currentGameData?.maxPlayers || 8;
 
   if (compCountCurrent) compCountCurrent.textContent = compositionLocale.length;
@@ -1879,8 +1938,8 @@ function renderSelectedChips() {
     if (!role) continue;
 
     html += `
-      <div class="comp-selected-chip" data-roleid="${id}" title="${role.nom}">
-      <span class="comp-role-icon role-icon-${role.id}"></span>
+      <div class="comp-selected-chip" data-roleid="${id}" title="${role.nom} (cliquer pour retirer)">
+        <div class="chip-icon role-icon-${role.id}"></div>
         ${count > 1 ? `<span class="chip-count">×${count}</span>` : ''}
       </div>
     `;
@@ -1891,11 +1950,7 @@ function renderSelectedChips() {
   compSelected.querySelectorAll('.comp-selected-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       const id = chip.dataset.roleid;
-      const index = compositionLocale.lastIndexOf(id);
-      if (index !== -1) {
-        compositionLocale.splice(index, 1);
-        renderCompositionPopup();
-      }
+      retirerRoleDeComposition(id);
     });
   });
 }
@@ -1903,52 +1958,98 @@ function renderSelectedChips() {
 function renderRoleGrid(container, roles) {
   if (!container) return;
 
-  container.innerHTML = roles
-    .filter(r => !r.estSecondaire)
-    .map(role => {
-      return `
+  container.innerHTML = roles.map(role => {
+    const count = compositionLocale.filter(id => id === role.id).length;
+    return `
+      <div class="comp-role" data-roleid="${role.id}">
         <div class="comp-role-icon role-icon-${role.id}">
-        <span class="comp-role-help" title="${role.description}">?</span>
-      </div>
-          <button class="comp-role-add" data-roleid="${role.id}">+</button>
+          <span class="comp-role-help" title="${role.description}">?</span>
         </div>
-      `;
-    })
-    .join('');
+        ${count > 0 ? `<span class="comp-role-count" data-roleid="${role.id}">×${count}</span>` : ''}
+        <button class="comp-role-add" data-roleid="${role.id}">+</button>
+        <div class="comp-role-name">${role.nom}</div>
+      </div>
+    `;
+  }).join('');
 
   container.querySelectorAll('.comp-role-add').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      addRoleToComposition(btn.dataset.roleid);
+      ajouterRoleAComposition(btn.dataset.roleid);
     });
   });
 }
 
-function addRoleToComposition(roleId) {
+async function ajouterRoleAComposition(roleId) {
   const role = getRoleById(roleId);
   if (!role) return;
 
-  const max = currentGameData?.maxPlayers || 8;
-
-  if (compositionLocale.length >= max) {
-    showMessage(`❌ Tu ne peux pas ajouter plus de ${max} rôles.`);
+  // Vérifie la limite MAX 16
+  if (compositionLocale.length >= 16) {
+    showMessage('❌ Maximum 16 joueurs.');
     return;
   }
 
+  // Vérifie si unique et déjà pris
   if (role.estUnique && compositionLocale.includes(roleId)) {
     showMessage(`❌ ${role.nom} est unique, tu ne peux pas l'ajouter 2 fois.`);
     return;
   }
 
   compositionLocale.push(roleId);
+
+  // Met à jour maxPlayers = composition.length
+  await majMaxPlayers(compositionLocale.length);
+
   renderCompositionPopup();
 }
 
-safeOn(compValidate, 'click', async () => {
-  const max = currentGameData?.maxPlayers || 8;
+async function retirerRoleDeComposition(roleId) {
+  const index = compositionLocale.lastIndexOf(roleId);
+  if (index === -1) return;
 
-  if (compositionLocale.length !== max) {
-    showMessage(`❌ Il faut exactement ${max} rôles (tu en as ${compositionLocale.length}).`);
+  const nouvelleTaille = compositionLocale.length - 1;
+
+  // Vérifie le minimum 5
+  if (nouvelleTaille < 5) {
+    showMessage('❌ Minimum 5 joueurs.');
+    return;
+  }
+
+  // ⚠️ Vérifie qu'on ne descend pas sous le nombre de joueurs présents
+  const joueursActuels = currentGameData?.players?.length || 1;
+  if (nouvelleTaille < joueursActuels) {
+    showMessage(`❌ Impossible de retirer : il y a déjà ${joueursActuels} joueur(s) dans la partie.`);
+    return;
+  }
+
+  compositionLocale.splice(index, 1);
+
+  // Met à jour maxPlayers = composition.length
+  await majMaxPlayers(compositionLocale.length);
+
+  renderCompositionPopup();
+}
+
+async function majMaxPlayers(nouveauMax) {
+  if (!currentGameId) return;
+
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  try {
+    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+      maxPlayers: nouveauMax,
+      composition: compositionLocale,
+      compositionValidee: false,   // invalide tant qu'on n'a pas re-validé
+    });
+  } catch (err) {
+    console.warn('Erreur majMaxPlayers:', err);
+  }
+}
+
+safeOn(compValidate, 'click', async () => {
+  if (compositionLocale.length < 5) {
+    showMessage('❌ Il faut au moins 5 rôles.');
     return;
   }
 
@@ -1957,12 +2058,17 @@ safeOn(compValidate, 'click', async () => {
   try {
     await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
       composition: compositionLocale,
+      maxPlayers: compositionLocale.length,
       compositionValidee: true,
+      secondaires: {
+        ange: choixAnge,
+        maire: choixMaire,
+        adjoint: choixMaire === 'maire-2-0' ? choixAdjoint : 'non',
+      },
     });
 
-    compositionValidee = true;
     showMessage('✅ Composition validée !');
-    compositionPopup.classList.add('hidden');
+    if (compositionPopup) compositionPopup.classList.add('hidden');
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
   }
@@ -1981,7 +2087,7 @@ function majBoutonLancer() {
     btnStartGame.disabled = !joueursPleins;
     btnStartGame.textContent = joueursPleins
       ? '▶️ Lancer la partie'
-      : `⏳ En attente des joueurs (${currentGameData.players.length}/${currentGameData.maxPlayers})`;
+      : `⏳ En attente (${currentGameData.players.length}/${currentGameData.maxPlayers})`;
   } else {
     btnStartGame.classList.add('hidden');
   }
@@ -1990,7 +2096,6 @@ function majBoutonLancer() {
 async function lancerPartie() {
   const user = window.firebaseAuth?.currentUser;
   if (!user || !currentGameData) return;
-
   if (currentGameData.hostId !== user.uid) return;
 
   if (!currentGameData.composition || currentGameData.composition.length === 0) {
@@ -2034,3 +2139,111 @@ async function lancerPartie() {
 }
 
 safeOn(btnStartGame, 'click', lancerPartie);
+
+// ═══════════════════════════════════════════════════════════
+// 🎯 RÔLES SECONDAIRES - Boutons radio
+// ═══════════════════════════════════════════════════════════
+
+document.querySelectorAll('.comp-radio-group').forEach(group => {
+  const option = group.dataset.option;
+
+  group.querySelectorAll('.comp-radio').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.comp-radio').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const value = btn.dataset.value;
+
+      if (option === 'ange') {
+        choixAnge = value;
+      } else if (option === 'maire') {
+        choixMaire = value;
+        if (value === 'maire-2-0') {
+          if (compAdjointOption) compAdjointOption.style.display = 'flex';
+        } else {
+          if (compAdjointOption) compAdjointOption.style.display = 'none';
+          choixAdjoint = 'non';
+          const adjointGroup = document.querySelector('[data-option="adjoint"]');
+          if (adjointGroup) {
+            adjointGroup.querySelectorAll('.comp-radio').forEach(b => b.classList.remove('active'));
+            adjointGroup.querySelector('[data-value="non"]')?.classList.add('active');
+          }
+        }
+      } else if (option === 'adjoint') {
+        choixAdjoint = value;
+      }
+    });
+  });
+
+  const noneBtn = group.querySelector('[data-value="none"]')
+              || group.querySelector('[data-value="non"]');
+  if (noneBtn) noneBtn.classList.add('active');
+});
+
+// ═══════════════════════════════════════════════════════════
+// ➕➖ CHANGER LE NOMBRE DE JOUEURS
+// ═══════════════════════════════════════════════════════════
+
+const btnMinusPlayers = document.getElementById('btn-minus-players');
+const btnPlusPlayers  = document.getElementById('btn-plus-players');
+
+safeOn(btnMinusPlayers, 'click', () => changerMaxPlayers(-1));
+safeOn(btnPlusPlayers,  'click', () => changerMaxPlayers(+1));
+
+async function changerMaxPlayers(delta) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user || !currentGameData) return;
+
+  if (currentGameData.hostId !== user.uid) {
+    showMessage('❌ Seul l\'hôte peut modifier le nombre de joueurs.');
+    return;
+  }
+
+  const nouveauMax = currentGameData.maxPlayers + delta;
+
+  if (nouveauMax < 5) {
+    showMessage('❌ Minimum 5 joueurs.');
+    return;
+  }
+  if (nouveauMax > 16) {
+    showMessage('❌ Maximum 16 joueurs.');
+    return;
+  }
+
+  if (nouveauMax < currentGameData.players.length) {
+    showMessage('❌ Il y a déjà ' + currentGameData.players.length + ' joueurs dans la partie.');
+    return;
+  }
+
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  try {
+    const nouvelleCompo = COMPOS_PREDEFINIES[nouveauMax] || [];
+
+    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+      maxPlayers: nouveauMax,
+      composition: nouvelleCompo,
+      compositionValidee: false,
+    });
+
+    showMessage('✅ Nombre de joueurs : ' + nouveauMax);
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+}
+
+function majBoutonsMaxPlayers() {
+  if (!btnMinusPlayers || !btnPlusPlayers || !currentGameData) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  const isHost = user && currentGameData.hostId === user.uid;
+  const partieEnAttente = currentGameData.status === 'waiting';
+
+  if (isHost && partieEnAttente) {
+    btnMinusPlayers.classList.remove('hidden');
+    btnPlusPlayers.classList.remove('hidden');
+  } else {
+    btnMinusPlayers.classList.add('hidden');
+    btnPlusPlayers.classList.add('hidden');
+  }
+}

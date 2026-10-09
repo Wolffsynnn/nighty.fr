@@ -199,7 +199,7 @@ async function initFirebase() {
         sessionStorage.removeItem('pendingInvite');
       }
 
-      // Vérifie si un lien de partie est dans l'URL
+      // Vérifie si un lien de partie est dans l'URL ou en attente
       checkGameLink();
     } else {
       showMessage('👤 Aucun utilisateur connecté');
@@ -757,9 +757,7 @@ function checkInviteLink() {
 setTimeout(checkInviteLink, 1000);
 
 // ═══════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════
 // SYSTÈME DE PARTIES MULTIJOUEUR TEMPS RÉEL
-// ═══════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════
 
 const createGamePopup   = document.getElementById('create-game-popup');
@@ -774,14 +772,6 @@ const cgCode            = document.getElementById('cg-code');
 const cgShowCode        = document.getElementById('cg-show-code');
 const cgShowLink        = document.getElementById('cg-show-link');
 
-// Popup rejoindre par code
-const joinGamePopup     = document.getElementById('join-game-popup');
-const btnJoinGame       = document.getElementById('btn-join-game');
-const jgCancel          = document.getElementById('jg-cancel');
-const jgJoin            = document.getElementById('jg-join');
-const jgCode            = document.getElementById('jg-code');
-
-// Bandeau partage dans le lobby
 const glShareBar        = document.getElementById('gl-share-bar');
 const glShareCodeWrap   = document.getElementById('gl-share-code-wrapper');
 const glShareCode       = document.getElementById('gl-share-code');
@@ -797,17 +787,15 @@ const glPlayersCount    = document.getElementById('gl-players-count');
 
 let currentGameId = null;
 let currentGameData = null;
-let gameUnsubscribe = null;       // listener Firestore de la partie en cours
-let currentPlayerSlots = {};      // copie locale des playerSlots
+let gameUnsubscribe = null;
+let currentPlayerSlots = {};
 
 // ═══════════════════════════════════════════════════════════
 // POSITIONS DES 16 SLOTS
 // ═══════════════════════════════════════════════════════════
 const POSITIONS_16 = [
-  // Rangée du FOND (8)
   { x: 22, y: 81 }, { x: 30, y: 78 }, { x: 38, y: 76 }, { x: 46, y: 75 },
   { x: 54, y: 75 }, { x: 62, y: 76 }, { x: 70, y: 78 }, { x: 78, y: 81 },
-  // Rangée du DEVANT (8)
   { x: 18, y: 103 }, { x: 27, y: 99 }, { x: 36, y: 97 }, { x: 45, y: 96 },
   { x: 55, y: 96 }, { x: 64, y: 97 }, { x: 73, y: 99 }, { x: 82, y: 103 },
 ];
@@ -841,19 +829,6 @@ safeOn(btnCreateGame, 'click', () => {
 
 safeOn(cgCancel, 'click', () => {
   if (createGamePopup) createGamePopup.classList.add('hidden');
-});
-
-safeOn(btnJoinGame, 'click', () => {
-  if (!joinGamePopup) return;
-  joinGamePopup.classList.remove('hidden');
-  if (jgCode) {
-    jgCode.value = '';
-    jgCode.focus();
-  }
-});
-
-safeOn(jgCancel, 'click', () => {
-  if (joinGamePopup) joinGamePopup.classList.add('hidden');
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -908,10 +883,10 @@ safeOn(cgCreate, 'click', async () => {
       players: [user.uid],
       playersPseudo: [user.displayName],
       playerSlots: { [user.uid]: 0 },
-      joinedOrder: [user.uid],        // ordre d'arrivée (1er = hôte)
+      joinedOrder: [user.uid],
       createdAt: serverTimestamp(),
       status: 'waiting',
-      messages: [],                    // chat
+      messages: [],
     });
 
     currentGameId = gameRef.id;
@@ -920,48 +895,7 @@ safeOn(cgCreate, 'click', async () => {
     if (createGamePopup) createGamePopup.classList.add('hidden');
     goToScreen(gameLobbyScreen);
 
-    // Lance le listener temps réel
     watchGame(currentGameId);
-
-  } catch (err) {
-    showMessage('❌ ' + (err.code || err.message));
-  }
-});
-
-// ═══════════════════════════════════════════════════════════
-// REJOINDRE PAR CODE
-// ═══════════════════════════════════════════════════════════
-safeOn(jgJoin, 'click', async () => {
-  const code = jgCode?.value.trim();
-  if (!code) {
-    showMessage('❌ Entre un code.');
-    return;
-  }
-
-  const { collection, getDocs, query, where } = await getFirestoreFns();
-  const user = window.firebaseAuth?.currentUser;
-  if (!user) return;
-
-  try {
-    const q = query(
-      collection(window.firebaseDB, 'games'),
-      where('code', '==', code),
-      where('type', '==', 'private'),
-      where('status', '==', 'waiting')
-    );
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      showMessage('❌ Aucune partie trouvée avec ce code.');
-      return;
-    }
-
-    // Prend la première partie trouvée
-    const gameDoc = snap.docs[0];
-    const gameId = gameDoc.id;
-
-    if (joinGamePopup) joinGamePopup.classList.add('hidden');
-    await joinGame(gameId);
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -973,15 +907,29 @@ safeOn(jgJoin, 'click', async () => {
 // ═══════════════════════════════════════════════════════════
 function checkGameLink() {
   const params = new URLSearchParams(window.location.search);
-  const gameId = params.get('game');
+  const urlGameId = params.get('game');
 
-  if (gameId) {
+  if (urlGameId) {
     // Nettoie l'URL
     window.history.replaceState({}, '', window.location.pathname);
-    // Rejoint la partie
-    setTimeout(() => joinGame(gameId), 800);
+    // Sauvegarde pour plus tard (au cas où pas encore connecté)
+    sessionStorage.setItem('pendingGameId', urlGameId);
+  }
+
+  // Récupère l'ID en attente
+  const pendingGameId = sessionStorage.getItem('pendingGameId');
+
+  if (pendingGameId) {
+    const user = window.firebaseAuth?.currentUser;
+    if (user) {
+      sessionStorage.removeItem('pendingGameId');
+      setTimeout(() => joinGame(pendingGameId), 500);
+    }
+    // Sinon : on attend la connexion (onAuthStateChanged rappellera checkGameLink)
   }
 }
+
+setTimeout(checkGameLink, 1200);
 
 // ═══════════════════════════════════════════════════════════
 // REJOINDRE UNE PARTIE
@@ -1004,7 +952,6 @@ async function joinGame(gameId) {
 
     const data = gameDoc.data();
 
-    // Déjà dedans ?
     if (data.players.includes(user.uid)) {
       currentGameId = gameId;
       goToScreen(gameLobbyScreen);
@@ -1012,13 +959,11 @@ async function joinGame(gameId) {
       return;
     }
 
-    // Complète ?
     if (data.players.length >= data.maxPlayers) {
       showMessage('❌ Partie complète.');
       return;
     }
 
-    // Statut ?
     if (data.status !== 'waiting') {
       showMessage('❌ Partie déjà lancée.');
       return;
@@ -1029,7 +974,6 @@ async function joinGame(gameId) {
     let freeSlot = 0;
     while (used.has(freeSlot)) freeSlot++;
 
-    // Ajoute le joueur
     await updateDoc(doc(window.firebaseDB, 'games', gameId), {
       players: arrayUnion(user.uid),
       playersPseudo: arrayUnion(user.displayName),
@@ -1053,7 +997,6 @@ async function joinGame(gameId) {
 async function watchGame(gameId) {
   const { doc, onSnapshot } = await getFirestoreFns();
 
-  // Nettoie l'ancien listener
   if (gameUnsubscribe) {
     gameUnsubscribe();
     gameUnsubscribe = null;
@@ -1061,7 +1004,6 @@ async function watchGame(gameId) {
 
   gameUnsubscribe = onSnapshot(doc(window.firebaseDB, 'games', gameId), (snap) => {
     if (!snap.exists()) {
-      // La partie a été supprimée
       showMessage('🚪 La partie a été fermée.');
       currentGameId = null;
       currentGameData = null;
@@ -1077,7 +1019,6 @@ async function watchGame(gameId) {
     currentGameData = data;
     currentPlayerSlots = data.playerSlots || {};
 
-    // Met à jour le bandeau
     renderGameLobby(data);
   });
 }
@@ -1086,21 +1027,17 @@ async function watchGame(gameId) {
 // AFFICHAGE DU LOBBY DE PARTIE
 // ═══════════════════════════════════════════════════════════
 function renderGameLobby(data) {
-  // Nom du village + compteur
   if (glVillageName) glVillageName.textContent = data.villageName || 'Village';
   if (glPlayersCount) glPlayersCount.textContent = `👥 ${data.players.length}/${data.maxPlayers}`;
 
-  // Bandeau code/lien
   renderShareBar(data);
 
-  // Slots joueurs
   const playersData = data.players.map((uid, i) => ({
     uid,
     pseudo: data.playersPseudo[i],
   }));
   updatePlayersSlots(data.maxPlayers, playersData, data.playerSlots || {});
 
-  // Chat
   renderChat(data.messages || []);
 }
 
@@ -1114,7 +1051,7 @@ function renderShareBar(data) {
   const showCode = isPrivate && data.showCode && data.code;
   const showLink = data.showLink;
 
-  // Rien à afficher ?
+  // Rien à afficher → cache tout
   if (!showCode && !showLink) {
     glShareBar.classList.add('hidden');
     if (btnInviteGame) btnInviteGame.classList.add('hidden');
@@ -1138,7 +1075,7 @@ function renderShareBar(data) {
     glShareLinkWrap.classList.add('hidden');
   }
 
-  // Bouton Inviter : visible si au moins un des deux est coché
+  // Bouton Inviter : visible seulement si au moins un des 2 est actif
   if (btnInviteGame) {
     if (showCode || showLink) {
       btnInviteGame.classList.remove('hidden');
@@ -1148,7 +1085,6 @@ function renderShareBar(data) {
   }
 }
 
-// Copier le code
 safeOn(glCopyCode, 'click', async () => {
   if (!currentGameData?.code) return;
   try {
@@ -1159,7 +1095,6 @@ safeOn(glCopyCode, 'click', async () => {
   }
 });
 
-// Copier le lien
 safeOn(glCopyLink, 'click', async () => {
   if (!currentGameId) return;
   const link = `${window.location.origin}/?game=${currentGameId}`;
@@ -1171,7 +1106,6 @@ safeOn(glCopyLink, 'click', async () => {
   }
 });
 
-// Bouton Inviter (bas du lobby)
 safeOn(btnInviteGame, 'click', async () => {
   if (!currentGameData) return;
   const link = `${window.location.origin}/?game=${currentGameId}`;
@@ -1204,7 +1138,6 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
 
   const CHARACTER_IMG = 'https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png';
 
-  // Map inverse slot → joueur
   const slotOccupants = {};
   playersData.forEach((p) => {
     const idx = playerSlots[p.uid];
@@ -1271,7 +1204,6 @@ async function moveMyCharacterToSlot(targetSlotIndex) {
 
   if (myCurrentSlot === targetSlotIndex) return;
 
-  // Trouve qui occupe le slot cible
   let otherUid = null;
   for (const [uid, slot] of Object.entries(playerSlots)) {
     if (slot === targetSlotIndex && uid !== user.uid) {
@@ -1331,7 +1263,7 @@ async function sendChatMessage() {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  const { doc, updateDoc, arrayUnion, serverTimestamp } = await getFirestoreFns();
+  const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
 
   glChatInput.value = '';
 
@@ -1367,7 +1299,6 @@ async function loadPublicGames() {
 
   const { collection, onSnapshot, query, where } = await getFirestoreFns();
 
-  // Nettoie l'ancien listener
   if (publicGamesUnsubscribe) {
     publicGamesUnsubscribe();
     publicGamesUnsubscribe = null;
@@ -1382,25 +1313,21 @@ async function loadPublicGames() {
   publicGamesUnsubscribe = onSnapshot(q, (snap) => {
     const games = [];
     const now = Date.now();
-    const MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 heures
+    const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
     snap.forEach(d => {
       const data = d.data();
 
-      // Ignore les parties vides
       if (!data.players || data.players.length === 0) return;
 
-      // Ignore les parties trop vieilles (2h sans activité)
       const createdAt = data.createdAt?.seconds ? data.createdAt.seconds * 1000 : now;
       if (now - createdAt > MAX_AGE_MS) return;
 
-      // Ignore les parties déjà lancées
       if (data.status && data.status !== 'waiting') return;
 
       games.push({ id: d.id, ...data });
     });
 
-    // Trie par date de création (plus récentes en haut)
     games.sort((a, b) => {
       const ta = a.createdAt?.seconds || 0;
       const tb = b.createdAt?.seconds || 0;
@@ -1424,8 +1351,7 @@ function renderPublicGames(games) {
     const max = g.maxPlayers;
     const ratio = count / max;
 
-    // Couleur selon remplissage
-    let statusClass = 'status-purple'; // par défaut : presque vide
+    let statusClass = 'status-purple';
     let label = '';
 
     if (count >= max) {
@@ -1456,7 +1382,6 @@ function renderPublicGames(games) {
     `;
   }).join('');
 
-  // Attache les clics
   gamesList.querySelectorAll('.game-card').forEach(card => {
     card.addEventListener('click', () => {
       if (card.dataset.full === 'true') return;
@@ -1490,7 +1415,6 @@ async function leaveGame() {
       const data = gameDoc.data();
       const remainingPlayers = data.players.filter(id => id !== user.uid);
 
-      // Dernier joueur → supprime la partie
       if (remainingPlayers.length === 0) {
         await deleteDoc(doc(window.firebaseDB, 'games', currentGameId));
         showMessage('🚪 Partie fermée');
@@ -1498,7 +1422,6 @@ async function leaveGame() {
         const newHostId = remainingPlayers[0];
         const newHostPseudo = data.playersPseudo[data.players.indexOf(newHostId)] || '?';
 
-        // Met à jour : retire le joueur + change l'hôte si nécessaire
         const updates = {
           players: arrayRemove(user.uid),
           playersPseudo: arrayRemove(user.displayName),
@@ -1516,7 +1439,6 @@ async function leaveGame() {
       }
     }
 
-    // Nettoie le listener
     if (gameUnsubscribe) {
       gameUnsubscribe();
       gameUnsubscribe = null;

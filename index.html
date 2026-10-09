@@ -158,10 +158,6 @@
             <span class="action-icon">➕</span>
             <span>Créer une partie</span>
           </button>
-          <button class="game-action-btn" id="btn-join-game">
-            <span class="action-icon">🔑</span>
-            <span>Rejoindre par code</span>
-          </button>
         </div>
 
         <div class="games-list" id="games-list">
@@ -276,6 +272,19 @@
       <button id="btn-composition" class="gl-btn">⚙️ Composition</button>
     </div>
 
+    <!-- Bandeau code/lien (affiché en haut, conditionnel) -->
+    <div id="gl-share-bar" class="gl-share-bar hidden">
+      <div class="gl-share-item hidden" id="gl-share-code-wrapper">
+        <span class="gl-share-label">🔑 Code :</span>
+        <span class="gl-share-value" id="gl-share-code">-----</span>
+        <button class="gl-share-copy" id="gl-copy-code" title="Copier le code">📋</button>
+      </div>
+      <div class="gl-share-item hidden" id="gl-share-link-wrapper">
+        <span class="gl-share-label">🔗 Lien :</span>
+        <button class="gl-share-copy" id="gl-copy-link" title="Copier le lien">📋 Copier</button>
+      </div>
+    </div>
+
     <div class="game-lobby-layout">
       <div class="game-lobby-players">
         <div id="gl-players-slots" class="gl-players-slots"></div>
@@ -298,62 +307,59 @@
   </div>
 
   <!-- ===== POPUP CRÉATION DE PARTIE ===== -->
-    <!-- ===== POPUP CRÉATION DE PARTIE ===== -->
-    <div id="create-game-popup" class="popup-overlay hidden">
-      <div class="popup-box">
-        <h3>Créer une partie</h3>
-  
-        <label class="cg-label">
-          <span>Nom du village</span>
-          <input type="text" id="cg-village-name" placeholder="Ex : Valdargent" maxlength="24" />
+  <div id="create-game-popup" class="popup-overlay hidden">
+    <div class="popup-box">
+      <h3>Créer une partie</h3>
+
+      <label class="cg-label">
+        <span>Nom du village</span>
+        <input type="text" id="cg-village-name" placeholder="Ex : Valdargent" maxlength="24" />
+      </label>
+
+      <label class="cg-label">
+        <span>Nombre de joueurs</span>
+        <select id="cg-max-players">
+          <option value="5">5 joueurs</option>
+          <option value="6">6 joueurs</option>
+          <option value="7">7 joueurs</option>
+          <option value="8" selected>8 joueurs</option>
+          <option value="9">9 joueurs</option>
+          <option value="10">10 joueurs</option>
+          <option value="12">12 joueurs</option>
+          <option value="16">16 joueurs</option>
+        </select>
+      </label>
+
+      <label class="cg-label">
+        <span>Type de partie</span>
+        <select id="cg-type">
+          <option value="public">Publique</option>
+          <option value="private">Privée</option>
+        </select>
+      </label>
+
+      <label class="cg-label hidden" id="cg-code-wrapper">
+        <span>Code de la partie (1 à 6 caractères, sans espaces)</span>
+        <input type="text" id="cg-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
+      </label>
+
+      <div class="cg-checkboxes">
+        <label class="cg-checkbox">
+          <input type="checkbox" id="cg-show-code" checked />
+          <span>Afficher le code dans le lobby</span>
         </label>
-  
-        <label class="cg-label">
-          <span>Nombre de joueurs</span>
-          <select id="cg-max-players">
-            <option value="5">5 joueurs</option>
-            <option value="6">6 joueurs</option>
-            <option value="7">7 joueurs</option>
-            <option value="8" selected>8 joueurs</option>
-            <option value="9">9 joueurs</option>
-            <option value="10">10 joueurs</option>
-            <option value="12">12 joueurs</option>
-            <option value="16">16 joueurs</option>
-          </select>
+        <label class="cg-checkbox">
+          <input type="checkbox" id="cg-show-link" checked />
+          <span>Afficher le lien dans le lobby</span>
         </label>
-  
-        <label class="cg-label">
-          <span>Type de partie</span>
-          <select id="cg-type">
-            <option value="public">Publique</option>
-            <option value="private">Privée</option>
-          </select>
-        </label>
-  
-        <!-- Champ code (affiché seulement si type = privée) -->
-        <label class="cg-label hidden" id="cg-code-wrapper">
-          <span>Code de la partie (1 à 6 caractères, sans espaces)</span>
-          <input type="text" id="cg-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
-        </label>
-  
-        <!-- Cases à cocher -->
-        <div class="cg-checkboxes">
-          <label class="cg-checkbox">
-            <input type="checkbox" id="cg-show-code" checked />
-            <span>Afficher le code dans le lobby</span>
-          </label>
-          <label class="cg-checkbox">
-            <input type="checkbox" id="cg-show-link" checked />
-            <span>Afficher le lien dans le lobby</span>
-          </label>
-        </div>
-  
-        <div class="popup-actions">
-          <button id="cg-cancel" class="popup-btn secondary">Annuler</button>
-          <button id="cg-create" class="popup-btn primary">Créer</button>
-        </div>
+      </div>
+
+      <div class="popup-actions">
+        <button id="cg-cancel" class="popup-btn secondary">Annuler</button>
+        <button id="cg-create" class="popup-btn primary">Créer</button>
       </div>
     </div>
+  </div>
 
   <!-- ===== POPUP "COMMING SOON" ===== -->
   <div id="coming-soon-popup" class="popup-overlay hidden">
@@ -391,118 +397,6 @@
       <span>Options</span>
     </button>
   </nav>
-   <!-- ===== POPUP CRÉATION DE PARTIE ===== -->
-   <div id="create-game-popup" class="popup-overlay hidden">
-    <div class="popup-box">
-      <h3>Créer une partie</h3>
-
-      <label class="cg-label">
-        <span>Nom du village</span>
-        <input type="text" id="cg-village-name" placeholder="Ex : Valdargent" maxlength="24" />
-      </label>
-
-      <label class="cg-label">
-        <span>Nombre de joueurs</span>
-        <select id="cg-max-players">
-          <option value="5">5 joueurs</option>
-          <option value="6">6 joueurs</option>
-          <option value="7">7 joueurs</option>
-          <option value="8" selected>8 joueurs</option>
-          <option value="9">9 joueurs</option>
-          <option value="10">10 joueurs</option>
-          <option value="12">12 joueurs</option>
-          <option value="16">16 joueurs</option>
-        </select>
-      </label>
-
-      <label class="cg-label">
-        <span>Type de partie</span>
-        <select id="cg-type">
-          <option value="public">Publique</option>
-          <option value="private">Privée</option>
-        </select>
-      </label>
-        <!-- ===== POPUP CRÉATION DE PARTIE ===== -->
-  <div id="create-game-popup" class="popup-overlay hidden">
-    <div class="popup-box">
-      <h3>Créer une partie</h3>
-
-      <label class="cg-label">
-        <span>Nom du village</span>
-        <input type="text" id="cg-village-name" placeholder="Ex : Valdargent" maxlength="24" />
-      </label>
-
-      <label class="cg-label">
-        <span>Nombre de joueurs</span>
-        <select id="cg-max-players">
-          <option value="5">5 joueurs</option>
-          <option value="6">6 joueurs</option>
-          <option value="7">7 joueurs</option>
-          <option value="8" selected>8 joueurs</option>
-          <option value="9">9 joueurs</option>
-          <option value="10">10 joueurs</option>
-          <option value="12">12 joueurs</option>
-          <option value="16">16 joueurs</option>
-        </select>
-      </label>
-
-      <label class="cg-label">
-        <span>Type de partie</span>
-        <select id="cg-type">
-          <option value="public">Publique</option>
-          <option value="private">Privée</option>
-        </select>
-      </label>
-
-      <!-- Champ code (affiché seulement si type = privée) -->
-      <label class="cg-label hidden" id="cg-code-wrapper">
-        <span>Code de la partie (1 à 6 caractères, sans espaces)</span>
-        <input type="text" id="cg-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
-      </label>
-
-      <!-- Cases à cocher -->
-      <div class="cg-checkboxes">
-        <label class="cg-checkbox">
-          <input type="checkbox" id="cg-show-code" checked />
-          <span>Afficher le code dans le lobby</span>
-        </label>
-        <label class="cg-checkbox">
-          <input type="checkbox" id="cg-show-link" checked />
-          <span>Afficher le lien dans le lobby</span>
-        </label>
-      </div>
-
-      <div class="popup-actions">
-        <button id="cg-cancel" class="popup-btn secondary">Annuler</button>
-        <button id="cg-create" class="popup-btn primary">Créer</button>
-      </div>
-    </div>
-  </div>
-
-      <!-- Champ code (affiché seulement si type = privée) -->
-      <label class="cg-label hidden" id="cg-code-wrapper">
-        <span>Code de la partie (1 à 6 caractères, sans espaces)</span>
-        <input type="text" id="cg-code" placeholder="Ex : LOUP42" maxlength="6" autocomplete="off" />
-      </label>
-
-      <!-- Cases à cocher -->
-      <div class="cg-checkboxes">
-        <label class="cg-checkbox">
-          <input type="checkbox" id="cg-show-code" checked />
-          <span>Afficher le code dans le lobby</span>
-        </label>
-        <label class="cg-checkbox">
-          <input type="checkbox" id="cg-show-link" checked />
-          <span>Afficher le lien dans le lobby</span>
-        </label>
-      </div>
-
-      <div class="popup-actions">
-        <button id="cg-cancel" class="popup-btn secondary">Annuler</button>
-        <button id="cg-create" class="popup-btn primary">Créer</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== MESSAGE DEBUG ===== -->
   <div id="debug-message" style="

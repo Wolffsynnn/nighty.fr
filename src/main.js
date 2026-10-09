@@ -1,5 +1,5 @@
 // ===== DEBUG VISUEL =====
-window.onerror = function(msg) {
+window.onerror = function (msg) {
   const el = document.getElementById('debug-message');
   if (el) {
     el.textContent = '❌ ERREUR : ' + msg;
@@ -7,17 +7,30 @@ window.onerror = function(msg) {
   }
 };
 
+let _msgTimer = null;
 function showMessage(text) {
   const el = document.getElementById('debug-message');
-  if (!el) return;
+  if (!el) {
+    console.log('[showMessage]', text);
+    return;
+  }
   el.textContent = text;
   el.style.display = 'block';
-  setTimeout(() => {
+  if (_msgTimer) clearTimeout(_msgTimer);
+  _msgTimer = setTimeout(() => {
     el.style.display = 'none';
   }, 3000);
 }
 
-// ===== FLAG ANTI-REDIRECTION =====
+// Utilitaire : attache un listener seulement si l'élément existe
+function safeOn(el, event, cb) {
+  if (!el) {
+    console.warn('⚠️ Élément manquant pour event "' + event + '"');
+    return;
+  }
+  el.addEventListener(event, cb);
+}
+
 let blockAutoRedirect = false;
 
 // ===== RÉCUPÉRATION DES ÉCRANS =====
@@ -28,6 +41,7 @@ const lobbyScreen       = document.getElementById('lobby-screen');
 const publicGamesScreen = document.getElementById('public-games-screen');
 const friendsScreen     = document.getElementById('friends-screen');
 const profileScreen     = document.getElementById('profile-screen');
+const gameLobbyScreen   = document.getElementById('game-lobby-screen');
 
 const btnContinue     = document.getElementById('btn-continue');
 const btnBackMode     = document.getElementById('btn-back-mode');
@@ -37,11 +51,13 @@ const gamesList       = document.getElementById('games-list');
 
 // ===================== BARRE D'ONGLETS GLOBALE =====================
 const globalTabBar  = document.getElementById('global-tab-bar');
-const globalTabBtns = globalTabBar.querySelectorAll('.tab-btn');
+const globalTabBtns = globalTabBar ? globalTabBar.querySelectorAll('.tab-btn') : [];
 
-globalTabBar.classList.add('hidden');
+if (globalTabBar) globalTabBar.classList.add('hidden');
 
 function updateTabBarVisibility() {
+  if (!globalTabBar) return;
+
   const screensWithTabBar = [
     'lobby-screen',
     'public-games-screen',
@@ -69,14 +85,17 @@ function updateTabBarVisibility() {
   });
 }
 
-// ===== FONCTION POUR CHANGER D'ÉCRAN =====
 function goToScreen(screen) {
+  if (!screen) {
+    console.warn('⚠️ goToScreen : écran null');
+    return;
+  }
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
   screen.classList.remove('hidden');
   updateTabBarVisibility();
 }
 
-// ===== BRANCHEMENT DES ONGLETS GLOBAUX =====
+// ===== ONGLETS GLOBAUX =====
 globalTabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
@@ -100,12 +119,11 @@ globalTabBtns.forEach(btn => {
 });
 
 // ===== INTRO → AUTH =====
-btnContinue.addEventListener('click', () => {
+safeOn(btnContinue, 'click', () => {
   goToScreen(authScreen);
 });
 
-// ===== RETOUR : MODE → AUTH =====
-btnBackMode.addEventListener('click', () => {
+safeOn(btnBackMode, 'click', () => {
   blockAutoRedirect = true;
   goToScreen(authScreen);
 });
@@ -121,11 +139,11 @@ tabs.forEach((tab) => {
     tab.classList.add('active');
 
     if (tab.dataset.tab === 'login') {
-      formLogin.classList.remove('hidden');
-      formRegister.classList.add('hidden');
+      formLogin?.classList.remove('hidden');
+      formRegister?.classList.add('hidden');
     } else {
-      formLogin.classList.add('hidden');
-      formRegister.classList.remove('hidden');
+      formLogin?.classList.add('hidden');
+      formRegister?.classList.remove('hidden');
     }
   });
 });
@@ -134,16 +152,29 @@ tabs.forEach((tab) => {
 const popup = document.getElementById('coming-soon-popup');
 const btnPopupBack = document.getElementById('popup-return');
 
-btnPopupBack.addEventListener('click', () => {
-  popup.classList.add('hidden');
+safeOn(btnPopupBack, 'click', () => {
+  if (popup) popup.classList.add('hidden');
 });
 
-// ===== ATTENDRE FIREBASE =====
+// ===== ATTENDRE FIREBASE (avec timeout) =====
 async function waitForFirebase() {
+  const start = Date.now();
   while (!window.firebaseAuth) {
+    if (Date.now() - start > 10000) {
+      throw new Error('Firebase auth non chargé après 10s');
+    }
     await new Promise((r) => setTimeout(r, 50));
   }
   return window.firebaseAuth;
+}
+
+// ===== IMPORT FIRESTORE =====
+let firestoreFns = null;
+async function getFirestoreFns() {
+  if (!firestoreFns) {
+    firestoreFns = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
+  }
+  return firestoreFns;
 }
 
 // ===== INITIALISATION FIREBASE =====
@@ -176,69 +207,74 @@ async function initFirebase() {
     }
   });
 
-  // ===== CONNEXION =====
-  formLogin.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = e.target.username.value.trim().toLowerCase();
-    const password = e.target.password.value;
-    const fakeEmail = `${username}@nighty.app`;
+  if (formLogin) {
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = e.target.username.value.trim().toLowerCase();
+      const password = e.target.password.value;
+      const fakeEmail = `${username}@nighty.app`;
 
-    blockAutoRedirect = false;
+      blockAutoRedirect = false;
 
-    try {
-      await signInWithEmailAndPassword(auth, fakeEmail, password);
-      showMessage('✅ Connexion réussie !');
-      goToScreen(modeScreen);
-    } catch (err) {
-      showMessage('❌ Connexion : ' + (err.code || err.message));
-    }
-  });
-
-  // ===== INSCRIPTION =====
-  formRegister.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const username = e.target.username.value.trim().toLowerCase();
-    const password = e.target.password.value;
-
-    const pseudoRegex = /^[a-z0-9._]{3,16}$/;
-    if (!pseudoRegex.test(username)) {
-      showMessage('❌ Pseudo invalide (3-16 car., a-z 0-9 . _)');
-      return;
-    }
-
-    const fakeEmail = `${username}@nighty.app`;
-    blockAutoRedirect = false;
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, fakeEmail, password);
-      await updateProfile(userCredential.user, { displayName: username });
-
-      const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
-
-      await setDoc(doc(window.firebaseDB, 'users', userCredential.user.uid), {
-        pseudo: username,
-        createdAt: serverTimestamp(),
-        stats: { games: 0, wins: 0, ratio: 0 },
-        friends: [],
-        achievements: [],
-        friendsRequests: { sent: [], received: [] },
-      });
-
-      showMessage('✅ Inscription réussie ! Pseudo : ' + username);
-      goToScreen(modeScreen);
-    } catch (err) {
-      if (err.code === 'auth/email-already-in-use') {
-        showMessage('❌ Ce pseudo est déjà pris.');
-      } else if (err.code === 'auth/weak-password') {
-        showMessage('❌ Mot de passe trop faible (6 car. min).');
-      } else {
-        showMessage('❌ ' + err.code + ' — ' + err.message);
+      try {
+        await signInWithEmailAndPassword(auth, fakeEmail, password);
+        showMessage('✅ Connexion réussie !');
+        goToScreen(modeScreen);
+      } catch (err) {
+        showMessage('❌ Connexion : ' + (err.code || err.message));
       }
-    }
-  });
+    });
+  }
+
+  if (formRegister) {
+    formRegister.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = e.target.username.value.trim().toLowerCase();
+      const password = e.target.password.value;
+
+      const pseudoRegex = /^[a-z0-9._]{3,16}$/;
+      if (!pseudoRegex.test(username)) {
+        showMessage('❌ Pseudo invalide (3-16 car., a-z 0-9 . _)');
+        return;
+      }
+
+      const fakeEmail = `${username}@nighty.app`;
+      blockAutoRedirect = false;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, fakeEmail, password);
+        await updateProfile(userCredential.user, { displayName: username });
+
+        const { doc, setDoc, serverTimestamp } = await getFirestoreFns();
+
+        await setDoc(doc(window.firebaseDB, 'users', userCredential.user.uid), {
+          pseudo: username,
+          createdAt: serverTimestamp(),
+          stats: { games: 0, wins: 0, ratio: 0 },
+          friends: [],
+          achievements: [],
+          friendsRequests: { sent: [], received: [] },
+        });
+
+        showMessage('✅ Inscription réussie ! Pseudo : ' + username);
+        goToScreen(modeScreen);
+      } catch (err) {
+        if (err.code === 'auth/email-already-in-use') {
+          showMessage('❌ Ce pseudo est déjà pris.');
+        } else if (err.code === 'auth/weak-password') {
+          showMessage('❌ Mot de passe trop faible (6 car. min).');
+        } else {
+          showMessage('❌ ' + err.code + ' — ' + err.message);
+        }
+      }
+    });
+  }
 }
 
-initFirebase();
+initFirebase().catch(err => {
+  console.error('❌ initFirebase :', err);
+  showMessage('❌ Firebase : ' + err.message);
+});
 
 // ===== MODE NORMAL → LOBBY =====
 const normalModeCard = document.querySelector('.mode-card[data-mode="normal"] .mode-play');
@@ -250,21 +286,21 @@ if (normalModeCard) {
   });
 }
 
-// ===== MODE BOSS → popup COMMING SOON =====
+// ===== MODE BOSS → popup =====
 const bossModeCard = document.querySelector('.mode-card[data-mode="boss"] .mode-play');
 if (bossModeCard) {
   bossModeCard.addEventListener('click', () => {
-    popup.classList.remove('hidden');
+    if (popup) popup.classList.remove('hidden');
   });
 }
 
-// ===== PARTIES : Retour → Lobby =====
-btnBackGames.addEventListener('click', () => {
+// ===== PARTIES : Retour =====
+safeOn(btnBackGames, 'click', () => {
   goToScreen(lobbyScreen);
 });
 
 // ===== PARTIES : Rafraîchir =====
-btnRefreshGames.addEventListener('click', () => {
+safeOn(btnRefreshGames, 'click', () => {
   btnRefreshGames.classList.add('spinning');
   setTimeout(() => btnRefreshGames.classList.remove('spinning'), 800);
   loadPublicGames();
@@ -273,22 +309,12 @@ btnRefreshGames.addEventListener('click', () => {
 // ===== CHARGEMENT DES PARTIES =====
 async function loadPublicGames() {
   const games = [];
-
   if (games.length === 0) {
-    gamesList.innerHTML = '<p class="games-empty">Aucune partie disponible pour le moment...</p>';
+    if (gamesList) {
+      gamesList.innerHTML = '<p class="games-empty">Aucune partie disponible pour le moment...</p>';
+    }
     return;
   }
-
-  gamesList.innerHTML = games.map(g => `
-    <div class="game-card">
-      <div class="game-card-header">🏘️ ${g.villageName}</div>
-      <div class="game-card-infos">
-        <span>👥 ${g.players}/${g.maxPlayers} joueurs</span>
-        <span>👑 [Hôte] ${g.hostName}</span>
-      </div>
-      <button class="game-card-join">Rejoindre</button>
-    </div>
-  `).join('');
 }
 
 // ===================== SHADER =====================
@@ -399,7 +425,7 @@ function initShaderCanvas(canvas) {
   render();
 }
 
-// ===================== ÉCRAN AMIS (FIRESTORE) =====================
+// ===================== ÉCRAN AMIS =====================
 const btnBackFriends = document.getElementById('btn-back-friends');
 const friendsSearch = document.getElementById('friends-search');
 const friendsResults = document.getElementById('friends-search-results');
@@ -411,27 +437,17 @@ const friendsPanels = {
   suggestions: document.querySelector('[data-friends-panel="suggestions"]'),
 };
 
-let firestoreFns = null;
-async function getFirestoreFns() {
-  if (!firestoreFns) {
-    firestoreFns = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
-  }
-  return firestoreFns;
-}
-
-// ===== Retour =====
-btnBackFriends.addEventListener('click', () => {
+safeOn(btnBackFriends, 'click', () => {
   goToScreen(lobbyScreen);
 });
 
-// ===== Onglets pilules =====
 const friendsTabs = document.querySelectorAll('.friends-tab');
 friendsTabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     friendsTabs.forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
 
-    Object.values(friendsPanels).forEach((p) => p.classList.add('hidden'));
+    Object.values(friendsPanels).forEach((p) => p && p.classList.add('hidden'));
     const target = friendsPanels[tab.dataset.friendsTab];
     if (target) {
       target.classList.remove('hidden');
@@ -440,26 +456,29 @@ friendsTabs.forEach((tab) => {
   });
 });
 
-// ===== Charger une section =====
 async function loadFriendsTab(tabName) {
   try {
     const user = window.firebaseAuth?.currentUser;
     if (!user) return;
 
-    showMessage('🔍 Tab: ' + tabName + ' | User: ' + user.uid.substring(0, 8));
-    const { collection, query, where, getDocs, doc, getDoc } = await getFirestoreFns();
+    const { collection, getDocs, doc, getDoc } = await getFirestoreFns();
 
     if (tabName === 'list') {
-      const q = query(collection(window.firebaseDB, 'friendships'), where('users', 'array-contains', user.uid));
-      const snap = await getDocs(q);
+      if (!friendsPanels.list) return;
 
-      if (snap.empty) {
+      const snap = await getDocs(collection(window.firebaseDB, 'friendships'));
+      const myFriendships = snap.docs.filter(d => {
+        const data = d.data();
+        return data.users && data.users.includes(user.uid);
+      });
+
+      if (myFriendships.length === 0) {
         friendsPanels.list.innerHTML = '<p class="friends-empty">Aucun ami pour le moment...</p>';
         return;
       }
 
       let html = '';
-      for (const d of snap.docs) {
+      for (const d of myFriendships) {
         const data = d.data();
         const otherId = data.users.find(id => id !== user.uid);
         const otherDoc = await getDoc(doc(window.firebaseDB, 'users', otherId));
@@ -468,50 +487,74 @@ async function loadFriendsTab(tabName) {
           html += renderFriendCard(otherId, other.pseudo, 'friend');
         }
       }
-      friendsPanels.list.innerHTML = html || '<p class="friends-empty">Aucun ami pour le moment...</p>';
+      friendsPanels.list.innerHTML = html;
 
     } else if (tabName === 'received') {
-      const q = query(collection(window.firebaseDB, 'friendRequests'), where('to', '==', user.uid));
-      const snap = await getDocs(q);
+      if (!friendsPanels.received) return;
+      const snap = await getDocs(collection(window.firebaseDB, 'friendRequests'));
+      const myRequests = snap.docs.filter(d => d.data().to === user.uid);
 
-      if (snap.empty) {
+      if (myRequests.length === 0) {
         friendsPanels.received.innerHTML = '<p class="friends-empty">Aucune demande reçue.</p>';
         return;
       }
 
       let html = '';
-      for (const d of snap.docs) {
+      for (const d of myRequests) {
         const data = d.data();
         html += renderFriendCard(data.from, data.fromPseudo, 'received', d.id);
       }
       friendsPanels.received.innerHTML = html;
 
     } else if (tabName === 'sent') {
-      const q = query(collection(window.firebaseDB, 'friendRequests'), where('from', '==', user.uid));
-      const snap = await getDocs(q);
+      if (!friendsPanels.sent) return;
+      const snap = await getDocs(collection(window.firebaseDB, 'friendRequests'));
+      const myRequests = snap.docs.filter(d => d.data().from === user.uid);
 
-      if (snap.empty) {
+      if (myRequests.length === 0) {
         friendsPanels.sent.innerHTML = '<p class="friends-empty">Aucune demande envoyée.</p>';
         return;
       }
 
       let html = '';
-      for (const d of snap.docs) {
+      for (const d of myRequests) {
         const data = d.data();
         html += renderFriendCard(data.to, data.toPseudo, 'sent', d.id);
       }
       friendsPanels.sent.innerHTML = html;
 
     } else if (tabName === 'suggestions') {
-      const snap = await getDocs(collection(window.firebaseDB, 'users'));
-      let html = '';
-      snap.forEach(d => {
-        if (d.id !== user.uid) {
-          const data = d.data();
-          html += renderFriendCard(d.id, data.pseudo, 'add');
+      if (!friendsPanels.suggestions) return;
+      const usersSnap = await getDocs(collection(window.firebaseDB, 'users'));
+      const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
+      const friendIds = new Set();
+      friendshipsSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.users && data.users.includes(user.uid)) {
+          const otherId = data.users.find(id => id !== user.uid);
+          if (otherId) friendIds.add(otherId);
         }
       });
-      friendsPanels.suggestions.innerHTML = html || '<p class="friends-empty">Aucune suggestion.</p>';
+
+      const requestsSnap = await getDocs(collection(window.firebaseDB, 'friendRequests'));
+      const pendingIds = new Set();
+      requestsSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.from === user.uid) pendingIds.add(data.to);
+        if (data.to === user.uid) pendingIds.add(data.from);
+      });
+
+      let html = '';
+      usersSnap.forEach(d => {
+        if (d.id === user.uid) return;
+        if (friendIds.has(d.id)) return;
+        if (pendingIds.has(d.id)) return;
+
+        const data = d.data();
+        html += renderFriendCard(d.id, data.pseudo, 'add');
+      });
+
+      friendsPanels.suggestions.innerHTML = html || '<p class="friends-empty">Aucune suggestion pour le moment.</p>';
     }
 
     attachFriendCardActions();
@@ -520,7 +563,6 @@ async function loadFriendsTab(tabName) {
   }
 }
 
-// ===== Rendu d'une carte =====
 function renderFriendCard(userId, pseudo, state, requestId = '') {
   let btn = '';
   if (state === 'add')      btn = '<button class="action-btn accept" data-action="add">+ Ajouter</button>';
@@ -539,7 +581,6 @@ function renderFriendCard(userId, pseudo, state, requestId = '') {
   `;
 }
 
-// ===== Brancher les boutons des cartes =====
 function attachFriendCardActions() {
   document.querySelectorAll('.friend-card .action-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -592,12 +633,11 @@ function attachFriendCardActions() {
   });
 }
 
-// ===== Recherche =====
-friendsSearch.addEventListener('input', async (e) => {
+safeOn(friendsSearch, 'input', async (e) => {
   const query_text = e.target.value.trim().toLowerCase();
 
   if (query_text.length < 3) {
-    friendsResults.classList.add('hidden');
+    friendsResults?.classList.add('hidden');
     return;
   }
 
@@ -614,6 +654,8 @@ friendsSearch.addEventListener('input', async (e) => {
 
   const user = window.firebaseAuth?.currentUser;
 
+  if (!friendsResults) return;
+
   if (results.length === 0) {
     friendsResults.innerHTML = '<p class="friends-empty">Aucun joueur trouvé.</p>';
   } else {
@@ -627,8 +669,7 @@ friendsSearch.addEventListener('input', async (e) => {
   friendsResults.classList.remove('hidden');
 });
 
-// ===== Copier le lien =====
-btnCopyInvite.addEventListener('click', async () => {
+safeOn(btnCopyInvite, 'click', async () => {
   const currentUser = window.firebaseAuth?.currentUser;
   const pseudo = currentUser?.displayName || 'joueur';
   const link = `${window.location.origin}/?invite=${pseudo}`;
@@ -647,17 +688,19 @@ const profilePseudo = document.getElementById('profile-pseudo');
 const profileStatus = document.getElementById('profile-status');
 const profileActionBtn = document.getElementById('profile-action-btn');
 
-btnBackProfile.addEventListener('click', () => {
+safeOn(btnBackProfile, 'click', () => {
   goToScreen(lobbyScreen);
 });
 
 async function openProfile(pseudo, isSelf = false) {
-  profilePseudo.textContent = pseudo;
+  if (profilePseudo) profilePseudo.textContent = pseudo;
 
   if (isSelf) {
-    profileStatus.innerHTML = '<span class="status-dot online"></span> Toi';
-    profileActionBtn.textContent = '✏️ Modifier le profil';
-    profileActionBtn.classList.add('friend');
+    if (profileStatus) profileStatus.innerHTML = '<span class="status-dot online"></span> Toi';
+    if (profileActionBtn) {
+      profileActionBtn.textContent = '✏️ Modifier le profil';
+      profileActionBtn.classList.add('friend');
+    }
 
     const currentUser = window.firebaseAuth?.currentUser;
     if (currentUser) {
@@ -669,28 +712,36 @@ async function openProfile(pseudo, isSelf = false) {
           const data = userDoc.data();
           const stats = data.stats || { games: 0, wins: 0, ratio: 0 };
 
-          document.getElementById('stat-games').textContent = stats.games || 0;
-          document.getElementById('stat-wins').textContent  = stats.wins || 0;
-          document.getElementById('stat-ratio').textContent = (stats.ratio || 0) + ' %';
+          const elGames = document.getElementById('stat-games');
+          const elWins  = document.getElementById('stat-wins');
+          const elRatio = document.getElementById('stat-ratio');
+          if (elGames) elGames.textContent = stats.games || 0;
+          if (elWins)  elWins.textContent  = stats.wins || 0;
+          if (elRatio) elRatio.textContent = (stats.ratio || 0) + ' %';
         }
       } catch (err) {
         showMessage('❌ Erreur de chargement du profil');
       }
     }
   } else {
-    profileStatus.innerHTML = '<span class="status-dot online"></span> En ligne';
-    profileActionBtn.textContent = '+ Ajouter en ami';
-    profileActionBtn.classList.remove('friend');
+    if (profileStatus) profileStatus.innerHTML = '<span class="status-dot online"></span> En ligne';
+    if (profileActionBtn) {
+      profileActionBtn.textContent = '+ Ajouter en ami';
+      profileActionBtn.classList.remove('friend');
+    }
 
-    document.getElementById('stat-games').textContent = 0;
-    document.getElementById('stat-wins').textContent  = 0;
-    document.getElementById('stat-ratio').textContent = '0 %';
+    const elGames = document.getElementById('stat-games');
+    const elWins  = document.getElementById('stat-wins');
+    const elRatio = document.getElementById('stat-ratio');
+    if (elGames) elGames.textContent = 0;
+    if (elWins)  elWins.textContent  = 0;
+    if (elRatio) elRatio.textContent = '0 %';
   }
 
   goToScreen(profileScreen);
 }
 
-profileActionBtn.addEventListener('click', () => {
+safeOn(profileActionBtn, 'click', () => {
   if (profileActionBtn.textContent.includes('Ajouter')) {
     showMessage('✅ Demande envoyée à ' + profilePseudo.textContent);
     profileActionBtn.textContent = '⏳ En attente';
@@ -700,7 +751,7 @@ profileActionBtn.addEventListener('click', () => {
   }
 });
 
-// ===================== DÉTECTION DU LIEN D'INVITATION =====================
+// ===================== LIEN D'INVITATION =====================
 function checkInviteLink() {
   const params = new URLSearchParams(window.location.search);
   const invitePseudo = params.get('invite');
@@ -716,3 +767,281 @@ function checkInviteLink() {
 }
 
 setTimeout(checkInviteLink, 1000);
+
+// ===================== CRÉATION DE PARTIE =====================
+const createGamePopup = document.getElementById('create-game-popup');
+const btnCreateGame   = document.getElementById('btn-create-game');
+const cgCancel        = document.getElementById('cg-cancel');
+const cgCreate        = document.getElementById('cg-create');
+const cgVillageName   = document.getElementById('cg-village-name');
+const cgMaxPlayers    = document.getElementById('cg-max-players');
+const cgType          = document.getElementById('cg-type');
+
+const btnBackGameLobby = document.getElementById('btn-back-game-lobby');
+const btnLeaveGame     = document.getElementById('btn-leave-game');
+const btnInviteGame    = document.getElementById('btn-invite-game');
+const glVillageName    = document.getElementById('gl-village-name');
+const glPlayersCount   = document.getElementById('gl-players-count');
+
+let currentGameId = null;
+
+safeOn(btnCreateGame, 'click', () => {
+  if (!createGamePopup) {
+    console.error(
+      '❌ Popup introuvable : aucun élément avec id="create-game-popup" dans le DOM.\n' +
+      '👉 Vérifie ton index.html (typo ? nom différent ? popup dans un autre fichier ?).'
+    );
+    showMessage('❌ Popup introuvable');
+    return;
+  }
+  createGamePopup.classList.remove('hidden');
+  if (cgVillageName) {
+    cgVillageName.value = '';
+    cgVillageName.focus();
+  }
+});
+
+safeOn(cgCancel, 'click', () => {
+  if (createGamePopup) createGamePopup.classList.add('hidden');
+});
+
+// ===================== POSITIONS FIXES DES EMPLACEMENTS =====================
+const POSITIONS_16 = [
+  // Rangée du FOND (8)
+  { x: 22, y: 81 }, { x: 30, y: 78 }, { x: 38, y: 76 }, { x: 46, y: 75 },
+  { x: 54, y: 75 }, { x: 62, y: 76 }, { x: 70, y: 78 }, { x: 78, y: 81 },
+  // Rangée du DEVANT (8)
+  { x: 18, y: 103 }, { x: 27, y: 99 }, { x: 36, y: 97 }, { x: 45, y: 96 },
+  { x: 55, y: 96 }, { x: 64, y: 97 }, { x: 73, y: 99 }, { x: 82, y: 103 },
+];
+
+// ===================== UPDATE PLAYERS SLOTS =====================
+function updatePlayersSlots(maxPlayers, playersData, playerSlots = {}) {
+  const user = window.firebaseAuth?.currentUser;
+  const currentUid = user?.uid;
+
+  if (glPlayersCount) {
+    glPlayersCount.textContent = `👥 ${playersData.length}/${maxPlayers}`;
+  }
+
+  const slotsContainer = document.getElementById('gl-players-slots');
+  if (!slotsContainer) return;
+  slotsContainer.innerHTML = '';
+
+  const CHARACTER_IMG = 'https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png';
+
+  // Construit un map inverse : slotIndex → { uid, pseudo }
+  const slotOccupants = {};
+  playersData.forEach((p) => {
+    const idx = playerSlots[p.uid];
+    if (idx !== undefined) {
+      slotOccupants[idx] = p;
+    }
+  });
+
+  const hostUid = playersData[0]?.uid;
+
+  for (let i = 0; i < maxPlayers; i++) {
+    const pos = POSITIONS_16[i];
+    if (!pos) continue;
+
+    const slot = document.createElement('div');
+    slot.className = 'gl-slot';
+    slot.style.left = pos.x + '%';
+    slot.style.top  = pos.y + '%';
+
+    const occupant = slotOccupants[i];
+
+    if (occupant) {
+      const isMe = occupant.uid === currentUid;
+      const isHost = occupant.uid === hostUid;
+
+      slot.classList.add('occupied');
+      if (isMe) slot.classList.add('me');
+      if (isHost) slot.classList.add('host');
+
+      slot.innerHTML = `
+        <div class="gl-slot-avatar">
+          <img src="${occupant.avatar || CHARACTER_IMG}" alt="${occupant.pseudo}" />
+        </div>
+        <div class="gl-slot-pseudo">${occupant.pseudo}${isMe ? ' (toi)' : ''}</div>
+      `;
+    } else {
+      slot.classList.add('empty');
+      slot.innerHTML = `
+        <div class="gl-slot-avatar">
+          <img src="${CHARACTER_IMG}" alt="" />
+        </div>
+        <div class="gl-slot-pseudo"></div>
+      `;
+    }
+
+    slot.addEventListener('click', () => {
+      if (occupant && occupant.uid === currentUid) return;
+      moveMyCharacterToSlot(i);
+    });
+
+    slotsContainer.appendChild(slot);
+  }
+}
+
+// ===================== DÉPLACEMENT DU PERSO =====================
+async function moveMyCharacterToSlot(targetSlotIndex) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+  if (!currentGameId) return;
+
+  const { doc, getDoc, updateDoc } = await getFirestoreFns();
+
+  try {
+    const gameDoc = await getDoc(doc(window.firebaseDB, 'games', currentGameId));
+    if (!gameDoc.exists()) return;
+
+    const data = gameDoc.data();
+    const playerSlots = data.playerSlots || {};
+    const myCurrentSlot = playerSlots[user.uid];
+
+    if (myCurrentSlot === targetSlotIndex) return;
+
+    // Trouve qui occupe le slot cible (s'il y en a un)
+    let otherUid = null;
+    for (const [uid, slot] of Object.entries(playerSlots)) {
+      if (slot === targetSlotIndex && uid !== user.uid) {
+        otherUid = uid;
+        break;
+      }
+    }
+
+    const newSlots = { ...playerSlots };
+
+    if (otherUid) {
+      // Échange les 2 joueurs
+      newSlots[user.uid] = targetSlotIndex;
+      newSlots[otherUid] = myCurrentSlot;
+    } else {
+      // Slot libre : on prend juste la place
+      newSlots[user.uid] = targetSlotIndex;
+    }
+
+    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+      playerSlots: newSlots,
+    });
+
+    // Rafraîchit l'affichage immédiatement
+    const playersData = data.players.map((uid, i) => ({
+      uid,
+      pseudo: data.playersPseudo[i],
+    }));
+    updatePlayersSlots(data.maxPlayers, playersData, newSlots);
+
+    showMessage('✅ Tu as changé de place');
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+}
+
+// ===================== CRÉATION DE LA PARTIE =====================
+safeOn(cgCreate, 'click', async () => {
+  const villageName = cgVillageName?.value.trim();
+  const maxPlayers = parseInt(cgMaxPlayers?.value, 10);
+  const type = cgType?.value;
+
+  if (!villageName) {
+    showMessage('❌ Donne un nom au village.');
+    return;
+  }
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) {
+    showMessage('❌ Tu dois être connecté.');
+    return;
+  }
+
+  const { collection, addDoc, serverTimestamp } = await getFirestoreFns();
+
+  try {
+    const gameRef = await addDoc(collection(window.firebaseDB, 'games'), {
+      villageName: villageName,
+      maxPlayers: maxPlayers,
+      type: type,
+      hostId: user.uid,
+      hostPseudo: user.displayName,
+      players: [user.uid],
+      playersPseudo: [user.displayName],
+      playerSlots: { [user.uid]: 0 },   // ⬅️ uid → index du slot
+      createdAt: serverTimestamp(),
+      status: 'waiting',
+    });
+
+    currentGameId = gameRef.id;
+    showMessage('✅ Partie créée !');
+
+    if (createGamePopup) createGamePopup.classList.add('hidden');
+    goToScreen(gameLobbyScreen);
+
+    if (glVillageName) glVillageName.textContent = villageName;
+
+    updatePlayersSlots(
+      maxPlayers,
+      [{ uid: user.uid, pseudo: user.displayName || 'moi' }],
+      { [user.uid]: 0 }
+    );
+
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+});
+
+// ===================== QUITTER LA PARTIE =====================
+async function leaveGame() {
+  if (!currentGameId) {
+    goToScreen(publicGamesScreen);
+    return;
+  }
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const { doc, getDoc, updateDoc, deleteDoc } = await getFirestoreFns();
+
+  try {
+    const gameDoc = await getDoc(doc(window.firebaseDB, 'games', currentGameId));
+
+    if (gameDoc.exists()) {
+      const data = gameDoc.data();
+
+      if (data.hostId === user.uid) {
+        await deleteDoc(doc(window.firebaseDB, 'games', currentGameId));
+        showMessage('🚪 Partie supprimée');
+      } else {
+        const newPlayers = data.players.filter(id => id !== user.uid);
+        const newPseudos = data.playersPseudo.filter((_, i) => data.players[i] !== user.uid);
+        await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+          players: newPlayers,
+          playersPseudo: newPseudos,
+        });
+        showMessage('🚪 Tu as quitté la partie');
+      }
+    }
+
+    currentGameId = null;
+    goToScreen(publicGamesScreen);
+
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+}
+
+safeOn(btnLeaveGame, 'click', leaveGame);
+safeOn(btnBackGameLobby, 'click', leaveGame);
+
+safeOn(btnInviteGame, 'click', async () => {
+  if (!currentGameId) return;
+  const link = `${window.location.origin}/?game=${currentGameId}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    showMessage('🔗 Lien copié : ' + link);
+  } catch {
+    showMessage('❌ Impossible de copier');
+  }
+});

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nighty</title>
-<link rel="icon" type="image/png" href="https://i.imgur.com/sfeVfWf.png" />
+  <link rel="icon" type="image/png" href="https://i.imgur.com/sfeVfWf.png" />
   <link rel="stylesheet" href="src/style.css" />
 
   <script type="module">
@@ -96,7 +96,6 @@
       <h2 class="mode-title">Choisis ton mode</h2>
 
       <div class="mode-list">
-        <!-- Carte Mode Normal -->
         <div class="mode-card" data-mode="normal">
           <h3>Mode Normal</h3>
           <p>Dans un village lointain, une meute de loups-garous s'attaque aux habitants et dévore une personne chaque nuit. Le village doit démasquer les coupables avant qu'il ne soit trop tard.</p>
@@ -107,7 +106,6 @@
           <button class="mode-play">Jouer</button>
         </div>
 
-        <!-- Carte Mode Boss -->
         <div class="mode-card" data-mode="boss">
           <h3>Mode Boss</h3>
           <p>Une entité surpuissante s'est éveillée. Seule contre tous, elle fera tout pour survivre. Le village saura-t-il l'arrêter ?</p>
@@ -257,6 +255,83 @@
             <span class="stat-label">Ratio</span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ÉCRAN 8 : LOBBY DE PARTIE ===== -->
+  <div id="game-lobby-screen" class="screen hidden">
+    <div class="bg-layer" style="background-image: url('https://i.imgur.com/HnNvpZJ.png');"></div>
+
+    <button id="btn-back-game-lobby" class="back-btn" aria-label="Quitter">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+    </button>
+
+    <div class="game-lobby-topbar">
+      <span id="gl-village-name">Village</span>
+      <span id="gl-players-count">👥 0/0</span>
+      <button id="btn-composition" class="gl-btn">⚙️ Composition</button>
+    </div>
+
+    <div class="game-lobby-layout">
+      <div class="game-lobby-players">
+        <div id="gl-players-slots" class="gl-players-slots"></div>
+      </div>
+
+      <div class="game-lobby-chat">
+        <h3>💬 Chat</h3>
+        <div id="gl-chat-messages" class="gl-chat-messages"></div>
+        <div class="gl-chat-input-wrapper">
+          <input type="text" id="gl-chat-input" placeholder="Écris un message..." />
+          <button id="gl-chat-send">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="game-lobby-bottombar">
+      <button id="btn-invite-game" class="gl-btn">🔗 Inviter</button>
+      <button id="btn-leave-game" class="gl-btn danger">🚪 Quitter</button>
+    </div>
+  </div>
+
+  <!-- ===== POPUP CRÉATION DE PARTIE ===== -->
+  <div id="create-game-popup" class="popup-overlay hidden">
+    <div class="popup-box">
+      <h3>Créer une partie</h3>
+
+      <label class="cg-label">
+        <span>Nom du village</span>
+        <input type="text" id="cg-village-name" placeholder="Ex : Valdargent" maxlength="24" />
+      </label>
+
+      <label class="cg-label">
+        <span>Nombre de joueurs</span>
+        <select id="cg-max-players">
+          <option value="5">5 joueurs</option>
+          <option value="6">6 joueurs</option>
+          <option value="7">7 joueurs</option>
+          <option value="8" selected>8 joueurs</option>
+          <option value="9">9 joueurs</option>
+          <option value="10">10 joueurs</option>
+          <option value="12">12 joueurs</option>
+          <option value="16">16 joueurs</option>
+        </select>
+      </label>
+
+      <label class="cg-label">
+        <span>Type de partie</span>
+        <select id="cg-type">
+          <option value="public">Publique</option>
+          <option value="private">Privée</option>
+        </select>
+      </label>
+
+      <div class="popup-actions">
+        <button id="cg-cancel" class="popup-btn secondary">Annuler</button>
+        <button id="cg-create" class="popup-btn primary">Créer</button>
       </div>
     </div>
   </div>

@@ -31,7 +31,7 @@ body {
   pointer-events: none;
 }
 
-/* ===== FOND PIXEL ART (commun aux deux écrans) ===== */
+/* ===== FOND PIXEL ART ===== */
 .bg-layer {
   position: absolute;
   inset: 0;
@@ -41,15 +41,14 @@ body {
   background-repeat: no-repeat;
   z-index: 0;
   animation: bgZoom 20s ease-in-out infinite alternate;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  filter: brightness(1.05) contrast(1.05) saturate(1.1);
 }
 
 @keyframes bgZoom {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.08);
-  }
+  from { transform: scale(1); }
+  to   { transform: scale(1.08); }
 }
 
 .bg-layer::after {
@@ -83,30 +82,14 @@ body {
 }
 
 @keyframes logoAppear {
-  0% {
-    opacity: 0;
-    transform: scale(0.8);
-    filter: drop-shadow(0 0 0px rgba(255, 150, 50, 0));
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    filter: drop-shadow(0 0 25px rgba(255, 150, 50, 0.5));
-  }
+  0%   { opacity: 0; transform: scale(0.8); filter: drop-shadow(0 0 0px rgba(255, 150, 50, 0)); }
+  60%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 25px rgba(255, 150, 50, 0.5)); }
 }
 
 @keyframes logoGlow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 20px rgba(255, 150, 50, 0.4));
-  }
-  50% {
-    filter: drop-shadow(0 0 40px rgba(255, 150, 50, 0.9));
-  }
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(255, 150, 50, 0.4)); }
+  50%      { filter: drop-shadow(0 0 40px rgba(255, 150, 50, 0.9)); }
 }
 
 #studio {
@@ -121,10 +104,7 @@ body {
 }
 
 @keyframes slideUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 #btn-continue {
@@ -147,13 +127,8 @@ body {
 }
 
 @keyframes btnGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 10px rgba(255, 150, 50, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(255, 150, 50, 0.7);
-  }
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 150, 50, 0.3); }
+  50%      { box-shadow: 0 0 25px rgba(255, 150, 50, 0.7); }
 }
 
 #btn-continue:hover {
@@ -163,9 +138,7 @@ body {
   transform: scale(1.05);
 }
 
-#btn-continue:active {
-  transform: scale(0.98);
-}
+#btn-continue:active { transform: scale(0.98); }
 
 /* ===================== ÉCRAN 2 : AUTH ===================== */
 .auth-card {
@@ -182,17 +155,10 @@ body {
 }
 
 @keyframes cardAppear {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Onglets */
 .auth-tabs {
   display: flex;
   gap: 8px;
@@ -214,9 +180,7 @@ body {
   transition: all 0.25s ease;
 }
 
-.auth-tab:hover {
-  color: #ffb347;
-}
+.auth-tab:hover { color: #ffb347; }
 
 .auth-tab.active {
   color: #ffb347;
@@ -224,16 +188,13 @@ body {
   text-shadow: 0 0 12px rgba(255, 150, 50, 0.6);
 }
 
-/* Formulaires */
 .auth-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.auth-form.hidden {
-  display: none;
-}
+.auth-form.hidden { display: none; }
 
 .auth-form label {
   display: flex;
@@ -271,9 +232,7 @@ body {
   background: rgba(0, 0, 0, 0.6);
 }
 
-.auth-form input::placeholder {
-  color: #555;
-}
+.auth-form input::placeholder { color: #555; }
 
 .auth-submit {
   margin-top: 10px;
@@ -296,10 +255,9 @@ body {
   transform: translateY(-1px);
 }
 
-.auth-submit:active {
-  transform: translateY(0);
-}
-/* ===================== ÉCRAN 3 : SÉLECTION DU MODE ===================== */
+.auth-submit:active { transform: translateY(0); }
+
+/* ===================== ÉCRAN 3 : MODE ===================== */
 .mode-container {
   position: relative;
   z-index: 1;
@@ -394,7 +352,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* ===================== POPUP COMMING SOON ===================== */
+/* ===================== POPUP ===================== */
 .popup-overlay {
   position: fixed;
   inset: 0;
@@ -428,14 +386,8 @@ body {
 }
 
 @keyframes popupAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 .popup-box h3 {
@@ -471,6 +423,7 @@ body {
   background: #ffc670;
   box-shadow: 0 0 25px rgba(255, 150, 50, 0.7);
 }
+
 /* ===================== BOUTON RETOUR ===================== */
 .back-btn {
   position: absolute;
@@ -498,280 +451,22 @@ body {
   transform: scale(1.08);
 }
 
-.back-btn:active {
-  transform: scale(0.96);
-}
+.back-btn:active { transform: scale(0.96); }
 
-.back-btn svg {
-  width: 22px;
-  height: 22px;
-}
-/* ===================== ÉCRAN 4 : PARTIES PUBLIQUES ===================== */
-.games-layout {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  width: 100%;
-  height: 100%;
-  padding: 80px 40px 90px 40px;
-  gap: 30px;
-}
+.back-btn svg { width: 22px; height: 22px; }
 
-/* ===== Colonne gauche ===== */
-.games-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 600px;
-}
-
-.games-title {
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
-  color: #ffb347;
-  letter-spacing: 0.08em;
-  text-shadow: 0 0 20px rgba(255, 150, 50, 0.6);
-}
-
-.games-actions {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.game-action-btn {
-  flex: 1 1 200px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-family: 'Georgia', serif;
-  font-size: 1rem;
-  letter-spacing: 0.05em;
-  color: #ffb347;
-  background: rgba(10, 10, 26, 0.85);
-  border: 2px solid rgba(255, 179, 71, 0.5);
-  border-radius: 12px;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition: all 0.25s ease;
-}
-
-.game-action-btn:hover {
-  background: #ffb347;
-  color: #0a0a1a;
-  box-shadow: 0 0 25px rgba(255, 150, 50, 0.7);
-  transform: translateY(-2px);
-}
-
-.action-icon {
-  font-size: 1.2rem;
-}
-
-/* ===== Liste des parties ===== */
-.games-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-right: 8px;
-}
-
-.games-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.games-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 179, 71, 0.4);
-  border-radius: 3px;
-}
-
-.games-empty {
-  text-align: center;
-  color: #888;
-  font-style: italic;
-  padding: 40px 20px;
-}
-
-/* Carte de partie */
-.game-card {
-  padding: 16px 20px;
-  background: rgba(10, 10, 26, 0.85);
-  border: 1px solid rgba(255, 179, 71, 0.35);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: all 0.25s ease;
-  animation: cardAppear 0.4s ease-out;
-}
-
-.game-card:hover {
-  border-color: rgba(255, 179, 71, 0.7);
-  box-shadow: 0 0 20px rgba(255, 150, 50, 0.25);
-}
-
-.game-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.1rem;
-  color: #ffb347;
-  font-weight: bold;
-}
-
-.game-card-infos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  font-size: 0.85rem;
-  color: #c8c8c8;
-}
-
-.game-card-join {
-  align-self: flex-end;
-  margin-top: 6px;
-  padding: 8px 24px;
-  font-family: 'Georgia', serif;
-  font-size: 0.9rem;
-  color: #0a0a1a;
-  background: #ffb347;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.25s ease;
-}
-
-.game-card-join:hover {
-  background: #ffc670;
-  box-shadow: 0 0 15px rgba(255, 150, 50, 0.6);
-}
-
-/* ===== Colonne droite : personnage ===== */
-.games-character {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  /* Vide pour l'instant — le designer remplira */
-}
-
-/* ===== Bouton Rafraîchir ===== */
-.refresh-btn {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  z-index: 5;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #ffb347;
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(255, 179, 71, 0.5);
-  border-radius: 50%;
-  cursor: pointer;
-  backdrop-filter: blur(6px);
-  transition: all 0.25s ease;
-}
-
-.refresh-btn:hover {
-  background: #ffb347;
-  color: #0a0a1a;
-  box-shadow: 0 0 20px rgba(255, 150, 50, 0.7);
-}
-
-.refresh-btn.spinning svg {
-  animation: spin 0.8s ease-in-out;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ===== Barre d'onglets ===== */
-.tab-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 10px 0;
-  background: rgba(10, 10, 26, 0.95);
-  border-top: 1px solid rgba(255, 179, 71, 0.3);
-  backdrop-filter: blur(12px);
-}
-
-.tab-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 4px;
-  background: transparent;
-  border: none;
-  color: #7a7a7a;
-  font-family: 'Georgia', serif;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.tab-btn:hover {
-  color: #ffb347;
-}
-
-.tab-btn.active {
-  color: #ffb347;
-  text-shadow: 0 0 12px rgba(255, 150, 50, 0.7);
-}
-
-.tab-icon {
-  font-size: 1.4rem;
-}
-
-/* ===== Responsive : mobile ===== */
-@media (max-width: 900px) {
-  .games-character {
-    display: none;
-  }
-
-  .games-layout {
-    padding: 80px 16px 90px 16px;
-  }
-
-  .games-main {
-    max-width: 100%;
-  }
-
-  .tab-btn span:not(.tab-icon) {
-    font-size: 0.65rem;
-  }
-}
 /* ===================== ÉCRAN 4 : LOBBY ===================== */
 .lobby-character {
   position: absolute;
-  bottom: 90px;
-  right: 5%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 300px;
   height: 400px;
   z-index: 2;
-  /* Vide pour l'instant — le designer remplira */
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* ===================== ÉCRAN 5 : PARTIES PUBLIQUES ===================== */
@@ -832,9 +527,7 @@ body {
   transform: translateY(-2px);
 }
 
-.action-icon {
-  font-size: 1.2rem;
-}
+.action-icon { font-size: 1.2rem; }
 
 .games-list {
   flex: 1;
@@ -845,10 +538,7 @@ body {
   padding-right: 8px;
 }
 
-.games-list::-webkit-scrollbar {
-  width: 6px;
-}
-
+.games-list::-webkit-scrollbar { width: 6px; }
 .games-list::-webkit-scrollbar-thumb {
   background: rgba(255, 179, 71, 0.4);
   border-radius: 3px;
@@ -920,7 +610,7 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
 }
 
 /* ===== Bouton Rafraîchir ===== */
@@ -949,120 +639,11 @@ body {
   box-shadow: 0 0 20px rgba(255, 150, 50, 0.7);
 }
 
-.refresh-btn.spinning svg {
-  animation: spin 0.8s ease-in-out;
-}
+.refresh-btn.spinning svg { animation: spin 0.8s ease-in-out; }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ===================== BARRE D'ONGLETS (GLASSMORPHISM) ===================== */
-.tab-bar {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 20;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  width: min(92%, 620px);
-  background: rgba(10, 10, 26, 0.45);
-  border: 1px solid rgba(255, 179, 71, 0.25);
-  border-radius: 24px;
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 40px rgba(255, 150, 50, 0.08);
-}
-
-.tab-btn {
-  flex: 1;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 4px;
-  background: transparent;
-  border: none;
-  color: rgba(200, 200, 200, 0.6);
-  font-family: 'Georgia', serif;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tab-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 179, 71, 0.15),
-    transparent 70%
-  );
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.tab-btn:hover {
-  color: #ffb347;
-  transform: translateY(-2px);
-}
-
-.tab-btn:hover::before {
-  opacity: 1;
-}
-
-.tab-btn.active {
-  color: #ffb347;
-  text-shadow: 0 0 14px rgba(255, 150, 50, 0.8);
-}
-
-.tab-btn.active::before {
-  opacity: 1;
-  background: radial-gradient(
-    circle at center,
-    rgba(255, 179, 71, 0.25),
-    transparent 70%
-  );
-}
-
-.tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 2px;
-  background: #ffb347;
-  border-radius: 2px;
-  box-shadow: 0 0 10px rgba(255, 150, 50, 0.9);
-}
-
-.tab-icon {
-  font-size: 1.3rem;
-  filter: grayscale(0.4);
-  transition: filter 0.3s ease, transform 0.3s ease;
-}
-
-.tab-btn.active .tab-icon,
-.tab-btn:hover .tab-icon {
-  filter: grayscale(0) drop-shadow(0 0 6px rgba(255, 150, 50, 0.6));
-  transform: scale(1.1);
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ===================== CANVAS SHADER ===================== */
@@ -1077,73 +658,7 @@ body {
 }
 
 #shader-canvas.active,
-#shader-canvas-lobby.active {
-  opacity: 1;
-}
-
-/* ===================== AMÉLIORATION NETTETÉ IMAGE ===================== */
-.bg-layer {
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  filter: brightness(1.05) contrast(1.05) saturate(1.1);
-}
-
-/* ===================== Responsive mobile ===================== */
-@media (max-width: 900px) {
-  .games-character,
-  .lobby-character {
-    display: none;
-  }
-
-  .games-layout {
-    padding: 80px 16px 100px 16px;
-  }
-
-  .games-main {
-    max-width: 100%;
-  }
-
-  .tab-bar {
-    bottom: 8px;
-    padding: 6px 8px;
-    border-radius: 20px;
-  }
-
-  .tab-btn {
-    font-size: 0.62rem;
-    padding: 8px 2px;
-  }
-
-  .tab-icon {
-    font-size: 1.1rem;
-  }
-}
-/* ===== IMAGE DU PERSONNAGE ===== */
-.lobby-character {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 300px;
-  height: 400px;
-  z-index: 2;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-@keyframes characterFloat {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
+#shader-canvas-lobby.active { opacity: 1; }
 
 /* ===================== ÉCRAN AMIS ===================== */
 .friends-container {
@@ -1157,12 +672,7 @@ body {
   gap: 16px;
 }
 
-/* Barre du haut */
-.friends-topbar {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+.friends-topbar { display: flex; gap: 10px; flex-wrap: wrap; }
 
 #friends-search {
   flex: 1;
@@ -1184,9 +694,7 @@ body {
   box-shadow: 0 0 15px rgba(255, 150, 50, 0.4);
 }
 
-#friends-search::placeholder {
-  color: #888;
-}
+#friends-search::placeholder { color: #888; }
 
 #btn-copy-invite {
   padding: 12px 18px;
@@ -1208,7 +716,6 @@ body {
   box-shadow: 0 0 20px rgba(255, 150, 50, 0.6);
 }
 
-/* Résultats de recherche */
 .friends-search-results {
   background: rgba(10, 10, 26, 0.92);
   border: 2px solid rgba(255, 179, 71, 0.4);
@@ -1223,11 +730,8 @@ body {
   animation: cardAppear 0.3s ease-out;
 }
 
-.friends-search-results.hidden {
-  display: none;
-}
+.friends-search-results.hidden { display: none; }
 
-/* Onglets pilules */
 .friends-tabs {
   display: flex;
   gap: 8px;
@@ -1236,10 +740,7 @@ body {
   scrollbar-width: thin;
 }
 
-.friends-tabs::-webkit-scrollbar {
-  height: 4px;
-}
-
+.friends-tabs::-webkit-scrollbar { height: 4px; }
 .friends-tabs::-webkit-scrollbar-thumb {
   background: rgba(255, 179, 71, 0.4);
   border-radius: 2px;
@@ -1272,25 +773,19 @@ body {
   box-shadow: 0 0 18px rgba(255, 150, 50, 0.5);
 }
 
-/* Contenu */
 .friends-content {
   flex: 1;
   overflow-y: auto;
   padding-right: 6px;
 }
 
-.friends-content::-webkit-scrollbar {
-  width: 6px;
-}
-
+.friends-content::-webkit-scrollbar { width: 6px; }
 .friends-content::-webkit-scrollbar-thumb {
   background: rgba(255, 179, 71, 0.4);
   border-radius: 3px;
 }
 
-.friends-panel.hidden {
-  display: none;
-}
+.friends-panel.hidden { display: none; }
 
 .friends-empty {
   text-align: center;
@@ -1299,7 +794,6 @@ body {
   padding: 40px 20px;
 }
 
-/* Carte d'ami */
 .friend-card {
   display: flex;
   align-items: center;
@@ -1364,13 +858,8 @@ body {
   background: #888;
 }
 
-.status-dot.online {
-  background: #4ade80;
-  box-shadow: 0 0 8px #4ade80;
-}
-.status-dot.offline {
-  background: #666;
-}
+.status-dot.online { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.status-dot.offline { background: #666; }
 
 .friend-actions {
   display: flex;
@@ -1400,7 +889,6 @@ body {
   box-shadow: 0 0 12px rgba(255, 150, 50, 0.5);
 }
 
-/* Boutons d'action (Accepter, Refuser, Ajouter...) */
 .action-btn {
   padding: 8px 16px;
   font-family: 'Georgia', serif;
@@ -1443,10 +931,7 @@ body {
   cursor: not-allowed;
 }
 
-/* Menu [...] */
-.friend-menu-wrapper {
-  position: relative;
-}
+.friend-menu-wrapper { position: relative; }
 
 .friend-menu {
   position: absolute;
@@ -1462,9 +947,7 @@ body {
   animation: cardAppear 0.2s ease-out;
 }
 
-.friend-menu.hidden {
-  display: none;
-}
+.friend-menu.hidden { display: none; }
 
 .friend-menu button {
   width: 100%;
@@ -1504,16 +987,12 @@ body {
   gap: 20px;
 }
 
-.profile-container::-webkit-scrollbar {
-  width: 6px;
-}
-
+.profile-container::-webkit-scrollbar { width: 6px; }
 .profile-container::-webkit-scrollbar-thumb {
   background: rgba(255, 179, 71, 0.4);
   border-radius: 3px;
 }
 
-/* En-tête */
 .profile-header {
   display: flex;
   flex-direction: column;
@@ -1581,7 +1060,6 @@ body {
   border: 2px solid rgba(255, 179, 71, 0.5);
 }
 
-/* Sections */
 .profile-section {
   padding: 20px;
   background: rgba(10, 10, 26, 0.85);
@@ -1598,7 +1076,6 @@ body {
   margin-bottom: 14px;
 }
 
-/* Statistiques */
 .profile-stats {
   display: flex;
   justify-content: space-around;
@@ -1625,69 +1102,585 @@ body {
   letter-spacing: 0.05em;
 }
 
-/* Succès */
-.profile-achievements {
+/* ===================== BARRE D'ONGLETS GLOBALE ===================== */
+#global-tab-bar { display: none !important; }
+#global-tab-bar.visible { display: flex !important; }
+
+.tab-bar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  justify-content: space-around;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  width: min(92%, 620px);
+  background: rgba(10, 10, 26, 0.45);
+  border: 1px solid rgba(255, 179, 71, 0.25);
+  border-radius: 24px;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 40px rgba(255, 150, 50, 0.08);
 }
 
-.achievement {
-  padding: 8px 14px;
-  background: rgba(255, 179, 71, 0.1);
+.tab-btn {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  color: rgba(200, 200, 200, 0.6);
+  font-family: 'Georgia', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 179, 71, 0.15),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: #ffb347;
+  transform: translateY(-2px);
+}
+
+.tab-btn:hover::before { opacity: 1; }
+
+.tab-btn.active {
+  color: #ffb347;
+  text-shadow: 0 0 14px rgba(255, 150, 50, 0.8);
+}
+
+.tab-btn.active::before {
+  opacity: 1;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 179, 71, 0.25),
+    transparent 70%
+  );
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: #ffb347;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(255, 150, 50, 0.9);
+}
+
+.tab-icon {
+  font-size: 1.3rem;
+  filter: grayscale(0.4);
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.tab-btn.active .tab-icon,
+.tab-btn:hover .tab-icon {
+  filter: grayscale(0) drop-shadow(0 0 6px rgba(255, 150, 50, 0.6));
+  transform: scale(1.1);
+}
+
+/* ===================== LOBBY DE PARTIE ===================== */
+#game-lobby-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-lobby-topbar {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background: rgba(10, 10, 26, 0.85);
   border: 1px solid rgba(255, 179, 71, 0.4);
-  border-radius: 999px;
-  font-size: 0.85rem;
-  color: #e0e0e0;
-  cursor: help;
-  transition: all 0.25s ease;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
 }
 
-.achievement:hover {
-  background: rgba(255, 179, 71, 0.2);
-  box-shadow: 0 0 15px rgba(255, 150, 50, 0.3);
+.game-lobby-topbar span {
+  font-size: 0.9rem;
+  color: #ffb347;
+  letter-spacing: 0.05em;
 }
 
-/* Historique */
-.profile-history {
+#gl-village-name {
+  font-weight: bold;
+  font-size: 1rem !important;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-lobby-layout {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  padding: 90px 24px 90px 24px;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===================== SLOTS JOUEURS EN CERCLE (style Wolfy) ===================== */
+.game-lobby-players {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.gl-players-slots {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.gl-slot {
+  position: absolute;
+  width: 110px;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.25s ease;
+  transform: translate(-50%, -100%);
+}
+
+.gl-slot:hover {
+  transform: translate(-50%, -100%) translateY(-6px);
+}
+
+.gl-slot-avatar {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Ombre au sol sous chaque perso */
+.gl-slot::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 14px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.45) 40%,
+    transparent 75%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Ombre par défaut */
+.gl-slot::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 14px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.75) 0%,
+    transparent 75%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+/* Ton perso : ombre plus marquée */
+.gl-slot.me::after {
+  width: 85px;
+  height: 18px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    transparent 80%
+  );
+}
+
+/* Slot vide : ombre très discrète */
+.gl-slot.empty::after {
+  opacity: 0.4;
+  width: 55px;
+  height: 10px;
+}
+
+.gl-slot-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.85));
+  transition: filter 0.25s ease;
+}
+
+.gl-slot.empty .gl-slot-avatar img {
+  filter: brightness(0) opacity(0.25) drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6));
+}
+
+.gl-slot.empty:hover .gl-slot-avatar img {
+  filter: brightness(0) opacity(0.55) drop-shadow(0 0 8px rgba(255, 179, 71, 0.7));
+}
+
+.gl-slot.me .gl-slot-avatar img {
+  filter:
+    drop-shadow(0 0 14px rgba(110, 193, 255, 0.8))
+    drop-shadow(0 4px 6px rgba(0, 0, 0, 0.9));
+}
+
+.gl-slot-pseudo {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  font-family: 'Georgia', serif;
+  font-size: 12px;
+  color: #f5e9c8;
+  background: rgba(0, 0, 0, 0.78);
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.gl-slot:hover .gl-slot-pseudo,
+.gl-slot.me .gl-slot-pseudo {
+  opacity: 1;
+}
+
+.gl-slot.me .gl-slot-pseudo {
+  background: rgba(110, 193, 255, 0.3);
+  border: 1px solid rgba(110, 193, 255, 0.7);
+  color: #cfeaff;
+}
+
+.gl-slot.host::before {
+  content: '👑';
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.9));
+  z-index: 2;
+  transition: top 0.25s ease;
+}
+
+.gl-slot.host:hover::before,
+.gl-slot.host.me::before {
+  top: -56px;
+}
+
+.gl-slot-empty-label { display: none; }
+
+/* ===================== CHAT ===================== */
+.game-lobby-chat {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 10, 26, 0.9);
+  border: 1px solid rgba(255, 179, 71, 0.4);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.game-lobby-chat h3 {
+  padding: 14px 16px;
+  font-size: 1rem;
+  color: #ffb347;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 179, 71, 0.2);
+}
+
+.gl-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  font-size: 0.88rem;
 }
 
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
+.gl-chat-messages::-webkit-scrollbar { width: 6px; }
+.gl-chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 179, 71, 0.4);
+  border-radius: 3px;
+}
+
+.gl-chat-msg {
+  padding: 8px 10px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 8px;
-  font-size: 0.9rem;
   color: #d0d0d0;
+  word-wrap: break-word;
 }
 
-.history-result {
+.gl-chat-msg .gl-chat-author {
+  color: #ffb347;
   font-weight: bold;
-  font-size: 0.85rem;
-  padding: 3px 10px;
-  border-radius: 6px;
+  font-size: 0.8rem;
+  margin-right: 4px;
 }
 
-.history-result.win {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.15);
+.gl-chat-input-wrapper {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid rgba(255, 179, 71, 0.2);
 }
 
-.history-result.lose {
+#gl-chat-input {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 179, 71, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Georgia', serif;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+#gl-chat-input:focus {
+  border-color: #ffb347;
+  box-shadow: 0 0 10px rgba(255, 150, 50, 0.3);
+}
+
+#gl-chat-send {
+  width: 42px;
+  background: #ffb347;
+  border: none;
+  border-radius: 8px;
+  color: #0a0a1a;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+#gl-chat-send:hover {
+  background: #ffc670;
+  box-shadow: 0 0 15px rgba(255, 150, 50, 0.5);
+}
+
+.game-lobby-bottombar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  gap: 12px;
+}
+
+.gl-btn {
+  padding: 10px 22px;
+  font-family: 'Georgia', serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  color: #ffb347;
+  background: rgba(10, 10, 26, 0.85);
+  border: 2px solid rgba(255, 179, 71, 0.5);
+  border-radius: 10px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.25s ease;
+}
+
+.gl-btn:hover {
+  background: #ffb347;
+  color: #0a0a1a;
+  box-shadow: 0 0 20px rgba(255, 150, 50, 0.6);
+}
+
+.gl-btn.danger {
   color: #ff6666;
-  background: rgba(255, 102, 102, 0.15);
-}
-/* Barre cachée par défaut */
-#global-tab-bar {
-  display: none !important;
+  border-color: rgba(255, 102, 102, 0.5);
 }
 
-/* Barre visible uniquement si elle a la classe "visible" */
-#global-tab-bar.visible {
-  display: flex !important;
+.gl-btn.danger:hover {
+  background: #ff6666;
+  color: #0a0a1a;
+  box-shadow: 0 0 20px rgba(255, 102, 102, 0.5);
+}
+
+/* ===================== POPUP CRÉATION DE PARTIE ===================== */
+.cg-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.cg-label span {
+  font-size: 0.85rem;
+  color: #c8c8c8;
+  letter-spacing: 0.05em;
+}
+
+.cg-label input,
+.cg-label select {
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 179, 71, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'Georgia', serif;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.cg-label input:focus,
+.cg-label select:focus {
+  border-color: #ffb347;
+  box-shadow: 0 0 12px rgba(255, 150, 50, 0.35);
+}
+
+.popup-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.popup-btn {
+  flex: 1;
+  padding: 12px;
+  font-family: 'Georgia', serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: bold;
+}
+
+.popup-btn.secondary {
+  background: rgba(0, 0, 0, 0.5);
+  color: #ff6666;
+  border: 2px solid rgba(255, 102, 102, 0.5);
+}
+
+.popup-btn.secondary:hover {
+  background: rgba(255, 102, 102, 0.2);
+}
+
+.popup-btn.primary {
+  background: #ffb347;
+  color: #0a0a1a;
+  border: 2px solid #ffb347;
+}
+
+.popup-btn.primary:hover {
+  background: #ffc670;
+  box-shadow: 0 0 20px rgba(255, 150, 50, 0.6);
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 1100px) {
+  .game-lobby-chat { width: 260px; }
+}
+
+@media (max-width: 900px) {
+  .games-character,
+  .lobby-character {
+    display: none;
+  }
+
+  .games-layout {
+    padding: 80px 16px 100px 16px;
+  }
+
+  .games-main { max-width: 100%; }
+
+  .tab-bar {
+    bottom: 8px;
+    padding: 6px 8px;
+    border-radius: 20px;
+  }
+
+  .tab-btn {
+    font-size: 0.62rem;
+    padding: 8px 2px;
+  }
+
+  .tab-icon { font-size: 1.1rem; }
+
+  .game-lobby-layout {
+    flex-direction: column;
+    padding: 90px 12px 90px 12px;
+  }
+
+  .game-lobby-chat {
+    width: 100%;
+    max-height: 250px;
+  }
+
+  .game-lobby-topbar {
+    top: 12px;
+    right: 12px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  #gl-village-name { max-width: 100px; font-size: 0.85rem !important; }
+  .game-lobby-topbar span { font-size: 0.8rem; }
+
+  .gl-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
 }

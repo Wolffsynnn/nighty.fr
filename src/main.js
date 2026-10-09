@@ -1,3 +1,26 @@
+// ═══════════════════════════════════════════════════════════
+// IMPORTS (rôles + mots)
+// ═══════════════════════════════════════════════════════════
+import {
+  ROLES_BASE,
+  ROLES_VARIANTES,
+  ROLES_NIGHTMARES,
+  TOUS_LES_ROLES,
+  getRoleById,
+} from './roles/index.js';
+
+import {
+  MOTS_LOUP_BAVARD,
+  TEXTES_NIGHTMARES,
+  TEXTES_MARIONNETTISTE,
+  TEXTES_NECROMANCIEN,
+  TEXTE_RODEUR,
+  TEXTE_FOSSOYeur,
+  PSEUDOS_LOUPS_ANONYMES,
+  choisirAleatoire,
+  contientMotCache,
+} from './data/mots.js';
+
 // ===== DEBUG VISUEL =====
 window.onerror = function (msg) {
   const el = document.getElementById('debug-message');
@@ -176,18 +199,16 @@ async function getFirestoreFns() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SYSTÈME DE PRÉSENCE (EN LIGNE / EN PARTIE / HORS LIGNE)
+// SYSTÈME DE PRÉSENCE
 // ═══════════════════════════════════════════════════════════
-
 const MAX_FRIENDS = 50;
-const ONLINE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
 
-// ─── Mise à jour du statut de présence ───
 async function updatePresence(status, gameId = null) {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  const { doc, updateDoc, setDoc } = await getFirestoreFns();
+  const { doc, setDoc } = await getFirestoreFns();
 
   try {
     const updates = {
@@ -195,15 +216,12 @@ async function updatePresence(status, gameId = null) {
       currentGameStatus: status,
       currentGameId: gameId,
     };
-
-    // updateDoc, et si le doc n'existe pas, setDoc avec merge
     await setDoc(doc(window.firebaseDB, 'users', user.uid), updates, { merge: true });
   } catch (err) {
     console.warn('Erreur updatePresence:', err);
   }
 }
 
-// ─── Heartbeat toutes les 60 secondes ───
 setInterval(() => {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
@@ -216,14 +234,12 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
-// ─── Mise à jour immédiate à la connexion ───
 async function initPresence() {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
   await updatePresence('online', null);
 }
 
-// ─── Calcul du statut à afficher ───
 function getFriendStatus(userData) {
   if (!userData) return 'offline';
 
@@ -548,7 +564,6 @@ async function loadFriendsTab(tabName) {
         return data.users && data.users.includes(user.uid);
       });
 
-      // Compteur d'amis
       const countEl = document.getElementById('friends-count');
       if (countEl) countEl.textContent = myFriendships.length;
 
@@ -591,7 +606,6 @@ async function loadFriendsTab(tabName) {
       }
       friendsPanels.list.innerHTML = html;
 
-      // Bouton rejoindre
       friendsPanels.list.querySelectorAll('.friend-join-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -621,7 +635,6 @@ async function loadFriendsTab(tabName) {
         });
       });
 
-      // Clic sur carte = profil
       friendsPanels.list.querySelectorAll('.friend-card').forEach(card => {
         card.addEventListener('click', () => {
           const pseudo = card.dataset.pseudo;
@@ -738,7 +751,6 @@ function attachFriendCardActions() {
       const { doc, setDoc, deleteDoc, serverTimestamp, collection, getDocs } = await getFirestoreFns();
 
       if (action === 'add') {
-        // Limite 50 amis
         const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
         const myFriendsCount = friendshipsSnap.docs.filter(d =>
           d.data().users && d.data().users.includes(user.uid)
@@ -882,7 +894,6 @@ async function openProfile(pseudo, isSelf = false) {
     return;
   }
 
-  // ─── Pas soi-même : chercher l'user par pseudo ───
   let targetUser = null;
   try {
     const usersSnap = await getDocs(collection(window.firebaseDB, 'users'));
@@ -903,12 +914,10 @@ async function openProfile(pseudo, isSelf = false) {
     return;
   }
 
-  // ─── Vérifier le statut : ami / demande envoyée / demande reçue / rien ───
-  let status = 'none'; // 'none' | 'friend' | 'sent' | 'received'
+  let status = 'none';
 
   if (currentUser) {
     try {
-      // Vérifier si déjà amis
       const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
       friendshipsSnap.forEach(d => {
         const data = d.data();
@@ -917,7 +926,6 @@ async function openProfile(pseudo, isSelf = false) {
         }
       });
 
-      // Vérifier si demande en cours
       if (status === 'none') {
         const reqSnap = await getDocs(collection(window.firebaseDB, 'friendRequests'));
         reqSnap.forEach(d => {
@@ -931,14 +939,12 @@ async function openProfile(pseudo, isSelf = false) {
     }
   }
 
-  // ─── Afficher le statut de l'user ───
   const friendStatus = getFriendStatus(targetUser);
   const { label, cls } = getFriendStatusLabel(friendStatus);
   if (profileStatus) {
     profileStatus.innerHTML = `<span class="status-dot ${cls}"></span> ${label}`;
   }
 
-  // ─── Adapter le bouton d'action ───
   if (profileActionBtn) {
     profileActionBtn.dataset.userid = targetUser.id;
     profileActionBtn.classList.remove('friend');
@@ -960,7 +966,6 @@ async function openProfile(pseudo, isSelf = false) {
     }
   }
 
-  // ─── Stats ───
   const stats = targetUser.stats || { games: 0, wins: 0, ratio: 0 };
   const elGames = document.getElementById('stat-games');
   const elWins  = document.getElementById('stat-wins');
@@ -981,7 +986,6 @@ safeOn(profileActionBtn, 'click', async () => {
 
   const { doc, setDoc, deleteDoc, serverTimestamp, collection, getDocs } = await getFirestoreFns();
 
-  // ─── Cas 1 : Accepter une demande reçue ───
   if (profileActionBtn.textContent.includes('Accepter')) {
     try {
       const friendshipId = [currentUser.uid, targetId].sort().join('_');
@@ -989,7 +993,6 @@ safeOn(profileActionBtn, 'click', async () => {
         users: [currentUser.uid, targetId],
         createdAt: serverTimestamp(),
       });
-      // Supprime la demande
       const reqId = `${targetId}_${currentUser.uid}`;
       await deleteDoc(doc(window.firebaseDB, 'friendRequests', reqId));
 
@@ -1003,9 +1006,7 @@ safeOn(profileActionBtn, 'click', async () => {
     return;
   }
 
-  // ─── Cas 2 : Envoyer une demande d'ami ───
   if (profileActionBtn.textContent.includes('Ajouter')) {
-    // Vérifie limite 50 amis
     const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
     const myFriendsCount = friendshipsSnap.docs.filter(d =>
       d.data().users && d.data().users.includes(currentUser.uid)
@@ -1035,7 +1036,6 @@ safeOn(profileActionBtn, 'click', async () => {
     return;
   }
 
-  // ─── Cas 3 : Modifier le profil (soi-même) ───
   if (profileActionBtn.textContent.includes('Modifier')) {
     showMessage('✏️ Fonctionnalité à venir');
   }
@@ -1059,7 +1059,7 @@ function checkInviteLink() {
 setTimeout(checkInviteLink, 1000);
 
 // ═══════════════════════════════════════════════════════════
-// SYSTÈME DE PARTIES MULTIJOUEUR TEMPS RÉEL
+// SYSTÈME DE PARTIES MULTIJOUEUR
 // ═══════════════════════════════════════════════════════════
 
 const createGamePopup   = document.getElementById('create-game-popup');
@@ -1232,6 +1232,8 @@ safeOn(cgCreate, 'click', async () => {
       createdAt: serverTimestamp(),
       status: 'waiting',
       messages: [],
+      composition: [],
+      compositionValidee: false,
     });
 
     currentGameId = gameRef.id;
@@ -1374,6 +1376,9 @@ function renderGameLobby(data) {
   updatePlayersSlots(data.maxPlayers, playersData, data.playerSlots || {});
 
   renderChat(data.messages || []);
+
+  // ⬇️ AJOUT : Met à jour le bouton Lancer
+  if (typeof majBoutonLancer === 'function') majBoutonLancer();
 }
 
 function renderShareBar(data) {
@@ -1801,3 +1806,231 @@ async function leaveGame() {
 
 safeOn(btnLeaveGame, 'click', leaveGame);
 safeOn(btnBackGameLobby, 'click', leaveGame);
+
+// ═══════════════════════════════════════════════════════════
+// 🎯 ÉTAPE 1 : COMPOSITION + LANCEMENT DE PARTIE
+// ═══════════════════════════════════════════════════════════
+
+const compositionPopup   = document.getElementById('composition-popup');
+const compClose          = document.getElementById('comp-close');
+const compValidate       = document.getElementById('comp-validate');
+const compSelected       = document.getElementById('comp-selected');
+const compCountCurrent   = document.getElementById('comp-count-current');
+const compCountMax       = document.getElementById('comp-count-max');
+const compGridBase       = document.getElementById('comp-grid-base');
+const compGridVariants   = document.getElementById('comp-grid-variants');
+const compGridNightmares = document.getElementById('comp-grid-nightmares');
+const btnStartGame       = document.getElementById('btn-start-game');
+const btnComposition     = document.getElementById('btn-composition');
+
+let compositionLocale = [];
+let compositionValidee = false;
+
+safeOn(btnComposition, 'click', () => {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user || !currentGameData) return;
+
+  if (currentGameData.hostId !== user.uid) {
+    showMessage('❌ Seul l\'hôte peut modifier la composition.');
+    return;
+  }
+
+  compositionLocale = currentGameData.composition || [];
+  compositionValidee = currentGameData.compositionValidee || false;
+
+  if (compCountMax) compCountMax.textContent = currentGameData.maxPlayers;
+
+  renderCompositionPopup();
+  compositionPopup.classList.remove('hidden');
+});
+
+safeOn(compClose, 'click', () => {
+  compositionPopup.classList.add('hidden');
+});
+
+function renderCompositionPopup() {
+  const max = currentGameData?.maxPlayers || 8;
+
+  if (compCountCurrent) compCountCurrent.textContent = compositionLocale.length;
+  if (compCountMax) compCountMax.textContent = max;
+
+  renderSelectedChips();
+  renderRoleGrid(compGridBase, ROLES_BASE);
+  renderRoleGrid(compGridVariants, ROLES_VARIANTES);
+  renderRoleGrid(compGridNightmares, ROLES_NIGHTMARES);
+}
+
+function renderSelectedChips() {
+  if (!compSelected) return;
+
+  if (compositionLocale.length === 0) {
+    compSelected.innerHTML = '<p class="comp-empty-selected">Aucun rôle sélectionné pour le moment.</p>';
+    return;
+  }
+
+  const counts = {};
+  compositionLocale.forEach(id => {
+    counts[id] = (counts[id] || 0) + 1;
+  });
+
+  let html = '';
+  for (const [id, count] of Object.entries(counts)) {
+    const role = getRoleById(id);
+    if (!role) continue;
+
+    html += `
+      <div class="comp-selected-chip" data-roleid="${id}" title="${role.nom}">
+      <span class="comp-role-icon role-icon-${role.id}"></span>
+        ${count > 1 ? `<span class="chip-count">×${count}</span>` : ''}
+      </div>
+    `;
+  }
+
+  compSelected.innerHTML = html;
+
+  compSelected.querySelectorAll('.comp-selected-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const id = chip.dataset.roleid;
+      const index = compositionLocale.lastIndexOf(id);
+      if (index !== -1) {
+        compositionLocale.splice(index, 1);
+        renderCompositionPopup();
+      }
+    });
+  });
+}
+
+function renderRoleGrid(container, roles) {
+  if (!container) return;
+
+  container.innerHTML = roles
+    .filter(r => !r.estSecondaire)
+    .map(role => {
+      return `
+        <div class="comp-role-icon role-icon-${role.id}">
+        <span class="comp-role-help" title="${role.description}">?</span>
+      </div>
+          <button class="comp-role-add" data-roleid="${role.id}">+</button>
+        </div>
+      `;
+    })
+    .join('');
+
+  container.querySelectorAll('.comp-role-add').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addRoleToComposition(btn.dataset.roleid);
+    });
+  });
+}
+
+function addRoleToComposition(roleId) {
+  const role = getRoleById(roleId);
+  if (!role) return;
+
+  const max = currentGameData?.maxPlayers || 8;
+
+  if (compositionLocale.length >= max) {
+    showMessage(`❌ Tu ne peux pas ajouter plus de ${max} rôles.`);
+    return;
+  }
+
+  if (role.estUnique && compositionLocale.includes(roleId)) {
+    showMessage(`❌ ${role.nom} est unique, tu ne peux pas l'ajouter 2 fois.`);
+    return;
+  }
+
+  compositionLocale.push(roleId);
+  renderCompositionPopup();
+}
+
+safeOn(compValidate, 'click', async () => {
+  const max = currentGameData?.maxPlayers || 8;
+
+  if (compositionLocale.length !== max) {
+    showMessage(`❌ Il faut exactement ${max} rôles (tu en as ${compositionLocale.length}).`);
+    return;
+  }
+
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  try {
+    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+      composition: compositionLocale,
+      compositionValidee: true,
+    });
+
+    compositionValidee = true;
+    showMessage('✅ Composition validée !');
+    compositionPopup.classList.add('hidden');
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+});
+
+function majBoutonLancer() {
+  if (!btnStartGame || !currentGameData) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  const isHost = user && currentGameData.hostId === user.uid;
+  const compoValidee = currentGameData.compositionValidee === true;
+  const joueursPleins = currentGameData.players.length === currentGameData.maxPlayers;
+
+  if (isHost && compoValidee) {
+    btnStartGame.classList.remove('hidden');
+    btnStartGame.disabled = !joueursPleins;
+    btnStartGame.textContent = joueursPleins
+      ? '▶️ Lancer la partie'
+      : `⏳ En attente des joueurs (${currentGameData.players.length}/${currentGameData.maxPlayers})`;
+  } else {
+    btnStartGame.classList.add('hidden');
+  }
+}
+
+async function lancerPartie() {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user || !currentGameData) return;
+
+  if (currentGameData.hostId !== user.uid) return;
+
+  if (!currentGameData.composition || currentGameData.composition.length === 0) {
+    showMessage('❌ La composition n\'est pas validée.');
+    return;
+  }
+  if (currentGameData.players.length !== currentGameData.maxPlayers) {
+    showMessage('❌ La partie n\'est pas complète.');
+    return;
+  }
+
+  const rolesMelanges = [...currentGameData.composition];
+  for (let i = rolesMelanges.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rolesMelanges[i], rolesMelanges[j]] = [rolesMelanges[j], rolesMelanges[i]];
+  }
+
+  const joueurs = currentGameData.players;
+  const rolesJoueurs = {};
+  joueurs.forEach((uid, index) => {
+    rolesJoueurs[uid] = rolesMelanges[index];
+  });
+
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  try {
+    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+      status: 'playing',
+      phase: 'avant-crepuscule',
+      tour: 1,
+      rolesJoueurs: rolesJoueurs,
+      joueursVivants: joueurs,
+      joueursMorts: [],
+      startedAt: Date.now(),
+    });
+
+    showMessage('🎮 La partie commence !');
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+}
+
+safeOn(btnStartGame, 'click', lancerPartie);

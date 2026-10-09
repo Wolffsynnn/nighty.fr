@@ -1381,8 +1381,22 @@ async function loadPublicGames() {
 
   publicGamesUnsubscribe = onSnapshot(q, (snap) => {
     const games = [];
+    const now = Date.now();
+    const MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 heures
+
     snap.forEach(d => {
       const data = d.data();
+
+      // Ignore les parties vides
+      if (!data.players || data.players.length === 0) return;
+
+      // Ignore les parties trop vieilles (2h sans activité)
+      const createdAt = data.createdAt?.seconds ? data.createdAt.seconds * 1000 : now;
+      if (now - createdAt > MAX_AGE_MS) return;
+
+      // Ignore les parties déjà lancées
+      if (data.status && data.status !== 'waiting') return;
+
       games.push({ id: d.id, ...data });
     });
 

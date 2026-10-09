@@ -1369,8 +1369,6 @@ safeOn(glChatInput, 'keydown', (e) => {
 // LISTE DES PARTIES PUBLIQUES (temps réel)
 // ═══════════════════════════════════════════════════════════
 let publicGamesUnsubscribe = null;
-
-let publicGamesUnsubscribe = null;
 let privateGamesUnsubscribe = null;
 
 async function loadGames() {

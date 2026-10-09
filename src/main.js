@@ -48,7 +48,7 @@ const btnBackGames    = document.getElementById('btn-back-games');
 const btnRefreshGames = document.getElementById('btn-refresh-games');
 const gamesList       = document.getElementById('games-list');
 const gamesTabs       = document.querySelectorAll('.games-tab');
-let currentGamesTab   = 'public';   // 'public' ou 'private'
+let currentGamesTab   = 'public';
 
 // ===================== BARRE D'ONGLETS GLOBALE =====================
 const globalTabBar  = document.getElementById('global-tab-bar');
@@ -175,6 +175,76 @@ async function getFirestoreFns() {
   return firestoreFns;
 }
 
+// ═══════════════════════════════════════════════════════════
+// SYSTÈME DE PRÉSENCE (EN LIGNE / EN PARTIE / HORS LIGNE)
+// ═══════════════════════════════════════════════════════════
+
+const MAX_FRIENDS = 50;
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
+// ─── Mise à jour du statut de présence ───
+async function updatePresence(status, gameId = null) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const { doc, updateDoc, setDoc } = await getFirestoreFns();
+
+  try {
+    const updates = {
+      lastSeen: Date.now(),
+      currentGameStatus: status,
+      currentGameId: gameId,
+    };
+
+    // updateDoc, et si le doc n'existe pas, setDoc avec merge
+    await setDoc(doc(window.firebaseDB, 'users', user.uid), updates, { merge: true });
+  } catch (err) {
+    console.warn('Erreur updatePresence:', err);
+  }
+}
+
+// ─── Heartbeat toutes les 60 secondes ───
+setInterval(() => {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  if (currentGameData) {
+    const status = currentGameData.status === 'waiting' ? 'waiting' : 'playing';
+    updatePresence(status, currentGameId);
+  } else {
+    updatePresence('online', null);
+  }
+}, 60 * 1000);
+
+// ─── Mise à jour immédiate à la connexion ───
+async function initPresence() {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+  await updatePresence('online', null);
+}
+
+// ─── Calcul du statut à afficher ───
+function getFriendStatus(userData) {
+  if (!userData) return 'offline';
+
+  const lastSeen = userData.lastSeen || 0;
+  const now = Date.now();
+
+  if (now - lastSeen > ONLINE_TIMEOUT_MS) return 'offline';
+
+  const status = userData.currentGameStatus;
+  if (status === 'waiting') return 'waiting';
+  if (status === 'playing') return 'playing';
+  return 'online';
+}
+
+function getFriendStatusLabel(status) {
+  if (status === 'online')   return { label: 'En ligne',     cls: 'online' };
+  if (status === 'waiting')  return { label: 'En attente',   cls: 'waiting' };
+  if (status === 'playing')  return { label: 'En partie',    cls: 'playing' };
+  return { label: 'Hors ligne', cls: 'offline' };
+}
+
 // ===== INITIALISATION FIREBASE =====
 async function initFirebase() {
   const auth = await waitForFirebase();
@@ -201,10 +271,8 @@ async function initFirebase() {
         sessionStorage.removeItem('pendingInvite');
       }
 
-      // Vérifie si un lien de partie est dans l'URL ou en attente
       checkGameLink();
-            // Enregistre la présence
-            initPresence();
+      initPresence();
     } else {
       showMessage('👤 Aucun utilisateur connecté');
     }
@@ -253,6 +321,9 @@ async function initFirebase() {
         await setDoc(doc(window.firebaseDB, 'users', userCredential.user.uid), {
           pseudo: username,
           createdAt: serverTimestamp(),
+          lastSeen: Date.now(),
+          currentGameStatus: 'online',
+          currentGameId: null,
           stats: { games: 0, wins: 0, ratio: 0 },
           friends: [],
           achievements: [],
@@ -477,6 +548,10 @@ async function loadFriendsTab(tabName) {
         return data.users && data.users.includes(user.uid);
       });
 
+      // Compteur d'amis
+      const countEl = document.getElementById('friends-count');
+      if (countEl) countEl.textContent = myFriendships.length;
+
       if (myFriendships.length === 0) {
         friendsPanels.list.innerHTML = '<p class="friends-empty">Aucun ami pour le moment...</p>';
         return;
@@ -489,10 +564,70 @@ async function loadFriendsTab(tabName) {
         const otherDoc = await getDoc(doc(window.firebaseDB, 'users', otherId));
         if (otherDoc.exists()) {
           const other = otherDoc.data();
-          html += renderFriendCard(otherId, other.pseudo, 'friend');
+          const status = getFriendStatus(other);
+          const { label, cls } = getFriendStatusLabel(status);
+
+          let joinBtn = '';
+          if (status === 'waiting' && other.currentGameId) {
+            joinBtn = `<button class="friend-join-btn" data-joingame="${other.currentGameId}">Rejoindre</button>`;
+          }
+
+          html += `
+            <div class="friend-card" data-userid="${otherId}" data-pseudo="${other.pseudo}" data-requestid="">
+              <div class="friend-avatar">👤</div>
+              <div class="friend-info">
+                <span class="friend-pseudo">${other.pseudo}</span>
+                <span class="friend-card-status">
+                  <span class="status-dot ${cls}"></span>${label}
+                </span>
+              </div>
+              <div class="friend-actions">
+                ${joinBtn}
+                <button class="action-btn disabled">✓ Ami</button>
+              </div>
+            </div>
+          `;
         }
       }
       friendsPanels.list.innerHTML = html;
+
+      // Bouton rejoindre
+      friendsPanels.list.querySelectorAll('.friend-join-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const gameId = btn.dataset.joingame;
+          if (!gameId) return;
+
+          const { doc, getDoc } = await getFirestoreFns();
+          const gameDoc = await getDoc(doc(window.firebaseDB, 'games', gameId));
+          if (!gameDoc.exists()) {
+            showMessage('❌ Cette partie n\'existe plus.');
+            return;
+          }
+
+          const gameData = gameDoc.data();
+          if (gameData.type === 'private') {
+            pendingPrivateGameId = gameId;
+            if (enterCodePopup) {
+              enterCodePopup.classList.remove('hidden');
+              if (ecCode) {
+                ecCode.value = '';
+                ecCode.focus();
+              }
+            }
+          } else {
+            joinGame(gameId);
+          }
+        });
+      });
+
+      // Clic sur carte = profil
+      friendsPanels.list.querySelectorAll('.friend-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const pseudo = card.dataset.pseudo;
+          if (pseudo) openProfile(pseudo);
+        });
+      });
 
     } else if (tabName === 'received') {
       if (!friendsPanels.received) return;
@@ -589,7 +724,7 @@ function renderFriendCard(userId, pseudo, state, requestId = '') {
 function attachFriendCardActions() {
   document.querySelectorAll('.friend-card .action-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      e.stopPropagation(); // Évite le clic sur la carte parent
+      e.stopPropagation();
 
       const card = btn.closest('.friend-card');
       const userId = card.dataset.userid;
@@ -603,14 +738,14 @@ function attachFriendCardActions() {
       const { doc, setDoc, deleteDoc, serverTimestamp, collection, getDocs } = await getFirestoreFns();
 
       if (action === 'add') {
-        // Vérifie la limite d'amis
+        // Limite 50 amis
         const friendshipsSnap = await getDocs(collection(window.firebaseDB, 'friendships'));
         const myFriendsCount = friendshipsSnap.docs.filter(d =>
           d.data().users && d.data().users.includes(user.uid)
         ).length;
 
-        if (myFriendsCount >= 50) {
-          showMessage('🐺 Ta meute est complète (50/50) ! Retire un ami pour en ajouter un autre.');
+        if (myFriendsCount >= MAX_FRIENDS) {
+          showMessage('🐺 Ta meute est complète (' + MAX_FRIENDS + '/' + MAX_FRIENDS + ') ! Retire un ami pour en ajouter un autre.');
           return;
         }
 
@@ -814,7 +949,6 @@ const btnLeaveGame      = document.getElementById('btn-leave-game');
 const btnInviteGame     = document.getElementById('btn-invite-game');
 const glVillageName     = document.getElementById('gl-village-name');
 const glPlayersCount    = document.getElementById('gl-players-count');
-// Popup code pour parties privées
 const enterCodePopup = document.getElementById('enter-code-popup');
 const ecCode         = document.getElementById('ec-code');
 const ecCancel       = document.getElementById('ec-cancel');
@@ -826,9 +960,6 @@ let currentGameData = null;
 let gameUnsubscribe = null;
 let currentPlayerSlots = {};
 
-// ═══════════════════════════════════════════════════════════
-// POSITIONS DES 16 SLOTS
-// ═══════════════════════════════════════════════════════════
 const POSITIONS_16 = [
   { x: 22, y: 81 }, { x: 30, y: 78 }, { x: 38, y: 76 }, { x: 46, y: 75 },
   { x: 54, y: 75 }, { x: 62, y: 76 }, { x: 70, y: 78 }, { x: 78, y: 81 },
@@ -836,9 +967,6 @@ const POSITIONS_16 = [
   { x: 55, y: 96 }, { x: 64, y: 97 }, { x: 73, y: 99 }, { x: 82, y: 103 },
 ];
 
-// ═══════════════════════════════════════════════════════════
-// POPUP CRÉATION : AFFICHER/CACHER LE CHAMP CODE
-// ═══════════════════════════════════════════════════════════
 safeOn(cgType, 'change', () => {
   if (!cgCodeWrapper) return;
   if (cgType.value === 'private') {
@@ -849,9 +977,6 @@ safeOn(cgType, 'change', () => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// OUVRIR/FERMER LES POPUPS
-// ═══════════════════════════════════════════════════════════
 safeOn(btnCreateGame, 'click', () => {
   if (!createGamePopup) return;
   createGamePopup.classList.remove('hidden');
@@ -866,9 +991,7 @@ safeOn(btnCreateGame, 'click', () => {
 safeOn(cgCancel, 'click', () => {
   if (createGamePopup) createGamePopup.classList.add('hidden');
 });
-// ═══════════════════════════════════════════════════════════
-// POPUP CODE PARTIE PRIVÉE
-// ═══════════════════════════════════════════════════════════
+
 safeOn(ecCancel, 'click', () => {
   if (enterCodePopup) enterCodePopup.classList.add('hidden');
   pendingPrivateGameId = null;
@@ -902,7 +1025,6 @@ safeOn(ecJoin, 'click', async () => {
       return;
     }
 
-    // Code bon → rejoint
     if (enterCodePopup) enterCodePopup.classList.add('hidden');
     const gameId = pendingPrivateGameId;
     pendingPrivateGameId = null;
@@ -913,7 +1035,6 @@ safeOn(ecJoin, 'click', async () => {
   }
 });
 
-// Entrée pour valider
 safeOn(ecCode, 'keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -921,10 +1042,6 @@ safeOn(ecCode, 'keydown', (e) => {
   }
 });
 
-
-// ═══════════════════════════════════════════════════════════
-// CRÉATION DE LA PARTIE
-// ═══════════════════════════════════════════════════════════
 safeOn(cgCreate, 'click', async () => {
   const villageName = cgVillageName?.value.trim();
   const maxPlayers = parseInt(cgMaxPlayers?.value, 10);
@@ -981,6 +1098,7 @@ safeOn(cgCreate, 'click', async () => {
     });
 
     currentGameId = gameRef.id;
+    updatePresence('waiting', currentGameId);
     showMessage('✅ Partie créée !');
 
     if (createGamePopup) createGamePopup.classList.add('hidden');
@@ -993,21 +1111,15 @@ safeOn(cgCreate, 'click', async () => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// VÉRIFIER UN LIEN DE PARTIE (?game=ID)
-// ═══════════════════════════════════════════════════════════
 function checkGameLink() {
   const params = new URLSearchParams(window.location.search);
   const urlGameId = params.get('game');
 
   if (urlGameId) {
-    // Nettoie l'URL
     window.history.replaceState({}, '', window.location.pathname);
-    // Sauvegarde pour plus tard (au cas où pas encore connecté)
     sessionStorage.setItem('pendingGameId', urlGameId);
   }
 
-  // Récupère l'ID en attente
   const pendingGameId = sessionStorage.getItem('pendingGameId');
 
   if (pendingGameId) {
@@ -1016,15 +1128,11 @@ function checkGameLink() {
       sessionStorage.removeItem('pendingGameId');
       setTimeout(() => joinGame(pendingGameId), 500);
     }
-    // Sinon : on attend la connexion (onAuthStateChanged rappellera checkGameLink)
   }
 }
 
 setTimeout(checkGameLink, 1200);
 
-// ═══════════════════════════════════════════════════════════
-// REJOINDRE UNE PARTIE
-// ═══════════════════════════════════════════════════════════
 async function joinGame(gameId) {
   const user = window.firebaseAuth?.currentUser;
   if (!user) {
@@ -1045,6 +1153,7 @@ async function joinGame(gameId) {
 
     if (data.players.includes(user.uid)) {
       currentGameId = gameId;
+      updatePresence('waiting', gameId);
       goToScreen(gameLobbyScreen);
       watchGame(gameId);
       return;
@@ -1060,7 +1169,6 @@ async function joinGame(gameId) {
       return;
     }
 
-    // Trouve le premier slot libre
     const used = new Set(Object.values(data.playerSlots || {}));
     let freeSlot = 0;
     while (used.has(freeSlot)) freeSlot++;
@@ -1083,9 +1191,6 @@ async function joinGame(gameId) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// LISTENER TEMPS RÉEL SUR LA PARTIE EN COURS
-// ═══════════════════════════════════════════════════════════
 async function watchGame(gameId) {
   const { doc, onSnapshot } = await getFirestoreFns();
 
@@ -1103,6 +1208,7 @@ async function watchGame(gameId) {
         gameUnsubscribe();
         gameUnsubscribe = null;
       }
+      updatePresence('online', null);
       goToScreen(publicGamesScreen);
       return;
     }
@@ -1110,17 +1216,14 @@ async function watchGame(gameId) {
     const data = snap.data();
     currentGameData = data;
     currentPlayerSlots = data.playerSlots || {};
-        // Met à jour la présence selon le statut de la partie
-        if (data.status === 'waiting') updatePresence('waiting', gameId);
-        if (data.status === 'playing') updatePresence('playing', gameId);
+
+    if (data.status === 'waiting') updatePresence('waiting', gameId);
+    if (data.status === 'playing') updatePresence('playing', gameId);
 
     renderGameLobby(data);
   });
 }
 
-// ═══════════════════════════════════════════════════════════
-// AFFICHAGE DU LOBBY DE PARTIE
-// ═══════════════════════════════════════════════════════════
 function renderGameLobby(data) {
   if (glVillageName) glVillageName.textContent = data.villageName || 'Village';
   if (glPlayersCount) glPlayersCount.textContent = `👥 ${data.players.length}/${data.maxPlayers}`;
@@ -1136,9 +1239,6 @@ function renderGameLobby(data) {
   renderChat(data.messages || []);
 }
 
-// ═══════════════════════════════════════════════════════════
-// BANDEAU CODE/LIEN EN HAUT
-// ═══════════════════════════════════════════════════════════
 function renderShareBar(data) {
   if (!glShareBar) return;
 
@@ -1146,7 +1246,6 @@ function renderShareBar(data) {
   const showCode = isPrivate && data.showCode && data.code;
   const showLink = data.showLink;
 
-  // Rien à afficher → cache tout
   if (!showCode && !showLink) {
     glShareBar.classList.add('hidden');
     if (btnInviteGame) btnInviteGame.classList.add('hidden');
@@ -1155,7 +1254,6 @@ function renderShareBar(data) {
 
   glShareBar.classList.remove('hidden');
 
-  // Code
   if (showCode && glShareCodeWrap && glShareCode) {
     glShareCodeWrap.classList.remove('hidden');
     glShareCode.textContent = data.code;
@@ -1163,14 +1261,12 @@ function renderShareBar(data) {
     glShareCodeWrap.classList.add('hidden');
   }
 
-  // Lien
   if (showLink && glShareLinkWrap) {
     glShareLinkWrap.classList.remove('hidden');
   } else if (glShareLinkWrap) {
     glShareLinkWrap.classList.add('hidden');
   }
 
-  // Bouton Inviter : visible seulement si au moins un des 2 est actif
   if (btnInviteGame) {
     if (showCode || showLink) {
       btnInviteGame.classList.remove('hidden');
@@ -1220,9 +1316,6 @@ safeOn(btnInviteGame, 'click', async () => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// AFFICHAGE DES SLOTS JOUEURS
-// ═══════════════════════════════════════════════════════════
 function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
   const user = window.firebaseAuth?.currentUser;
   const currentUid = user?.uid;
@@ -1285,9 +1378,6 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// DÉPLACEMENT DU PERSO
-// ═══════════════════════════════════════════════════════════
 async function moveMyCharacterToSlot(targetSlotIndex) {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
@@ -1326,9 +1416,6 @@ async function moveMyCharacterToSlot(targetSlotIndex) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// CHAT DU LOBBY
-// ═══════════════════════════════════════════════════════════
 const glChatMessages = document.getElementById('gl-chat-messages');
 const glChatInput    = document.getElementById('gl-chat-input');
 const glChatSend     = document.getElementById('gl-chat-send');
@@ -1384,9 +1471,6 @@ safeOn(glChatInput, 'keydown', (e) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// LISTE DES PARTIES PUBLIQUES (temps réel)
-// ═══════════════════════════════════════════════════════════
 let publicGamesUnsubscribe = null;
 let privateGamesUnsubscribe = null;
 
@@ -1395,7 +1479,6 @@ async function loadGames() {
 
   const { collection, onSnapshot, query, where } = await getFirestoreFns();
 
-  // Nettoie les anciens listeners
   if (publicGamesUnsubscribe) {
     publicGamesUnsubscribe();
     publicGamesUnsubscribe = null;
@@ -1405,7 +1488,6 @@ async function loadGames() {
     privateGamesUnsubscribe = null;
   }
 
-  // Requête selon l'onglet actif
   const typeFilter = currentGamesTab === 'public' ? 'public' : 'private';
 
   const q = query(
@@ -1448,7 +1530,6 @@ async function loadGames() {
   }
 }
 
-// Wrapper pour compat avec les appels existants
 function loadPublicGames() {
   loadGames();
 }
@@ -1505,7 +1586,6 @@ function renderGames(games) {
       if (card.dataset.full === 'true') return;
       const gameId = card.dataset.gameid;
 
-      // Si partie privée → demande le code
       if (isPrivateTab) {
         pendingPrivateGameId = gameId;
         if (enterCodePopup) {
@@ -1516,16 +1596,12 @@ function renderGames(games) {
           }
         }
       } else {
-        // Partie publique → rejoint direct
         joinGame(gameId);
       }
     });
   });
 }
 
-// ═══════════════════════════════════════════════════════════
-// QUITTER LA PARTIE (avec promotion d'hôte)
-// ═══════════════════════════════════════════════════════════
 async function leaveGame() {
   const user = window.firebaseAuth?.currentUser;
   if (!user) {
@@ -1588,77 +1664,3 @@ async function leaveGame() {
 
 safeOn(btnLeaveGame, 'click', leaveGame);
 safeOn(btnBackGameLobby, 'click', leaveGame);
-// ═══════════════════════════════════════════════════════════
-// SYSTÈME DE PRÉSENCE (EN LIGNE / EN PARTIE / HORS LIGNE)
-// ═══════════════════════════════════════════════════════════
-
-const MAX_FRIENDS = 50;
-const ONLINE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
-
-// ─── Mise à jour du statut de présence ───
-async function updatePresence(status, gameId = null) {
-  const user = window.firebaseAuth?.currentUser;
-  if (!user) return;
-
-  const { doc, updateDoc } = await getFirestoreFns();
-
-  try {
-    const updates = {
-      lastSeen: Date.now(),
-      currentGameStatus: status,   // 'online' | 'waiting' | 'playing' | 'offline'
-      currentGameId: gameId,
-    };
-    await updateDoc(doc(window.firebaseDB, 'users', user.uid), updates);
-  } catch (err) {
-    // Silencieux : pas grave si ça échoue
-    console.warn('Erreur updatePresence:', err);
-  }
-}
-
-// ─── Heartbeat toutes les 60 secondes ───
-setInterval(() => {
-  const user = window.firebaseAuth?.currentUser;
-  if (!user) return;
-
-  // Si on est dans une partie, garde le statut actuel, sinon 'online'
-  if (currentGameData) {
-    const status = currentGameData.status === 'waiting' ? 'waiting' : 'playing';
-    updatePresence(status, currentGameId);
-  } else {
-    updatePresence('online', null);
-  }
-}, 60 * 1000);
-
-// ─── Mise à jour immédiate à la connexion ───
-async function initPresence() {
-  const user = window.firebaseAuth?.currentUser;
-  if (!user) return;
-  await updatePresence('online', null);
-}
-
-// ─── Calcul du statut à afficher à partir des données user ───
-function getFriendStatus(userData) {
-  if (!userData) return 'offline';
-
-  const lastSeen = userData.lastSeen || 0;
-  const now = Date.now();
-
-  // Hors ligne si pas d'activité depuis 2 min
-  if (now - lastSeen > ONLINE_TIMEOUT_MS) return 'offline';
-
-  const status = userData.currentGameStatus;
-  if (status === 'waiting') return 'waiting';
-  if (status === 'playing') return 'playing';
-  return 'online';
-}
-
-// ─── Libellé + couleur du statut ───
-function getFriendStatusLabel(status) {
-  if (status === 'online')   return { label: 'En ligne',     cls: 'online' };
-  if (status === 'waiting')  return { label: 'En attente',   cls: 'waiting' };
-  if (status === 'playing')  return { label: 'En partie',    cls: 'playing' };
-  return { label: 'Hors ligne', cls: 'offline' };
-}
-
-// ─── Enregistre la présence après connexion ───
-// (appelé depuis onAuthStateChanged un peu plus bas)

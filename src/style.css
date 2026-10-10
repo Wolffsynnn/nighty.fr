@@ -2568,10 +2568,39 @@ body.is-mobile .screen.hidden canvas {
    📱 LOBBY DE PARTIE — MOBILE (fond NUIT)
    ═══════════════════════════════════════════════════════════ */
 
-body.is-mobile #game-lobby-screen .bg-layer {
+/* ═══════════════════════════════════════════════════════════
+   🌅 FOND JOUR / NUIT SELON LA PHASE
+   ═══════════════════════════════════════════════════════════ */
+
+/* ───── PC : fonds de base ───── */
+body.phase-jour #game-lobby-screen .bg-layer {
+  background-image: url('https://i.postimg.cc/05YRxSk3/a4ad4234-798b-4de4-b889-2c2ff4f83a23.png') !important;
+  background-size: cover;
+  background-position: center;
+}
+
+body.phase-nuit #game-lobby-screen .bg-layer {
+  background-image: url('https://i.postimg.cc/pdVzV4nC/file-000000006bb481f4835e0a2f060841aa.webp') !important;
+  background-size: cover;
+  background-position: center;
+}
+
+/* ───── MOBILE : on override avec les images mobiles ───── */
+body.is-mobile.phase-jour #game-lobby-screen .bg-layer {
+  background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
+  background-size: cover;
+  background-position: center top;
+}
+
+body.is-mobile.phase-nuit #game-lobby-screen .bg-layer {
   background-image: url('https://i.postimg.cc/L8sGSZ78/f91fb2ea-57f9-49ce-aa9e-7ce7bd90de20.png') !important;
   background-size: cover;
   background-position: center top;
+}
+
+/* ───── Transition douce entre jour et nuit ───── */
+#game-lobby-screen .bg-layer {
+  transition: background-image 0.8s ease-in-out;
 }
 
 body.is-mobile .game-lobby-layout {

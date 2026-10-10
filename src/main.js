@@ -7,6 +7,8 @@ import {
   ecouterLancement,
 } from './game/lancement.js';
 
+import { ecouterTimerPhase } from './game/phases-timer.js';
+
 // ===== DÉTECTION APPAREIL (vrai mobile vs PC) =====
 const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
                || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
@@ -1217,6 +1219,7 @@ let currentGameData = null;
 let gameUnsubscribe = null;
 let currentPlayerSlots = {};
 let lancementUnsubscribe = null;
+let phaseTimerUnsubscribe = null;
 
 // ─── Positions pour PC (ancien système en arc) ───
 const POSITIONS_16_PC = [
@@ -1233,6 +1236,44 @@ const POSITIONS_16_MOBILE = [
   { x: 8,  y: 58 }, { x: 20, y: 58 }, { x: 32, y: 58 }, { x: 44, y: 58 },
   { x: 56, y: 58 }, { x: 68, y: 58 }, { x: 80, y: 58 }, { x: 92, y: 58 },
 ];
+
+// ═══════════════════════════════════════════════════════════
+// 🎬 AFFICHAGE DE LA PHASE
+// ═══════════════════════════════════════════════════════════
+
+const NOMS_PHASES = {
+  'avant-crepuscule': 'Avant-Crépuscule',
+  'crepuscule':       'Crépuscule',
+  'minuit':           'Minuit',
+  'apres-minuit':     'Après-Minuit',
+  'aube':             'Aube',
+  'jour':             'Jour',
+  'vote':             'Vote du Village',
+  'soir':             'Soir',
+};
+
+function afficherPhase(phase, tour) {
+  const overlay = document.getElementById('phase-overlay');
+  const elNom = document.getElementById('phase-nom');
+  const elTour = document.getElementById('phase-tour');
+
+  const phasesNuit = ['avant-crepuscule', 'crepuscule', 'minuit', 'apres-minuit'];
+  const estNuit = phasesNuit.includes(phase);
+
+  document.body.classList.remove('phase-jour', 'phase-nuit');
+  document.body.classList.add(estNuit ? 'phase-nuit' : 'phase-jour');
+
+  if (!overlay || !elNom || !elTour) return;
+
+  overlay.classList.remove('hidden', 'nuit', 'jour');
+  overlay.dataset.phase = phase;
+
+  if (estNuit) overlay.classList.add('nuit');
+  else overlay.classList.add('jour');
+
+  elNom.textContent = NOMS_PHASES[phase] || phase;
+  elTour.textContent = `Tour ${tour}`;
+}
 
 // ═══════════════════════════════════════════════════════════
 // 🚀 ÉCOUTE DU LANCEMENT AUTOMATIQUE
@@ -1280,6 +1321,36 @@ function ecouterLeLancement(gameId) {
     },
   }).then(unsub => {
     lancementUnsubscribe = unsub;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// ⏱️ ÉCOUTE DU TIMER DE PHASE
+// ═══════════════════════════════════════════════════════════
+
+function ecouterLeTimerDePhase(gameId) {
+  if (phaseTimerUnsubscribe) {
+    phaseTimerUnsubscribe();
+    phaseTimerUnsubscribe = null;
+  }
+
+  const overlay = document.getElementById('phase-overlay');
+  const elNom = document.getElementById('phase-nom');
+  const elTour = document.getElementById('phase-tour');
+
+  ecouterTimerPhase(gameId, {
+    onTick: (restant, phase, tour) => {
+      if (overlay && elNom && elTour) {
+        overlay.classList.remove('hidden');
+        elNom.textContent = (NOMS_PHASES[phase] || phase) + ` (${Math.ceil(restant / 1000)}s)`;
+        elTour.textContent = `Tour ${tour}`;
+      }
+    },
+    onPhaseChange: (nouvellePhase, nouveauTour) => {
+      console.log(`🎬 Nouvelle phase : ${nouvellePhase} (Tour ${nouveauTour})`);
+    },
+  }).then(unsub => {
+    phaseTimerUnsubscribe = unsub;
   });
 }
 
@@ -1425,6 +1496,7 @@ safeOn(cgCreate, 'click', async () => {
 
     watchGame(currentGameId);
     ecouterLeLancement(currentGameId);
+    ecouterLeTimerDePhase(currentGameId);   // ✅ AJOUTÉ
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1477,6 +1549,7 @@ async function joinGame(gameId) {
       goToScreen(gameLobbyScreen);
       watchGame(gameId);
       ecouterLeLancement(gameId);
+      ecouterLeTimerDePhase(gameId);   // ✅ AJOUTÉ
       return;
     }
 
@@ -1509,6 +1582,7 @@ async function joinGame(gameId) {
     goToScreen(gameLobbyScreen);
     watchGame(gameId);
     ecouterLeLancement(gameId);
+    ecouterLeTimerDePhase(gameId);   // ✅ AJOUTÉ
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1544,15 +1618,11 @@ async function watchGame(gameId) {
     if (data.status === 'waiting') updatePresence('waiting', gameId);
     if (data.status === 'playing') updatePresence('playing', gameId);
 
-     // ✅ Si la partie est lancée → on passe à l'écran de jeu
-     if (data.enCours === true || data.status === 'playing') {
-      // ✅ Cache le countdown s'il est encore visible
+    if (data.enCours === true || data.status === 'playing') {
       const overlay = document.getElementById('countdown-overlay');
       if (overlay) overlay.classList.add('hidden');
 
       onPartieLancee(data);
-
-      // ✅ Met à jour la phase en temps réel
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
       return;
     }
@@ -1593,10 +1663,8 @@ function onPartieLancee(data) {
 
   document.body.classList.add('game-started');
 
-  // ✅ Affiche la phase en cours
   afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
 
-  // ✅ N'affiche la carte qu'UNE SEULE FOIS
   if (monRole && !roleRevealDejaVu) {
     roleRevealDejaVu = true;
     showRoleReveal(monRole);
@@ -1770,7 +1838,6 @@ async function moveMyCharacterToSlot(targetSlotIndex) {
   if (!user) return;
   if (!currentGameId) return;
 
-  // ✅ Bloqué si la partie est lancée
   if (currentGameData?.enCours === true) return;
 
   const { doc, updateDoc } = await getFirestoreFns();
@@ -1832,7 +1899,6 @@ async function sendChatMessage() {
   if (!text) return;
   if (!currentGameId) return;
 
-  // ✅ BLOQUÉ si la partie est lancée
   if (currentGameData?.enCours === true) {
     showMessage('❌ Le chat est fermé pendant la partie.');
     glChatInput.value = '';
@@ -2056,9 +2122,16 @@ async function leaveGame() {
       lancementUnsubscribe = null;
     }
 
-    // ✅ Reset le flag de révélation + enlève la classe "partie lancée"
+    // ✅ Coupe l'écoute du timer de phase
+    if (phaseTimerUnsubscribe) {
+      phaseTimerUnsubscribe();
+      phaseTimerUnsubscribe = null;
+    }
+
+    // ✅ Reset les classes
     roleRevealDejaVu = false;
     document.body.classList.remove('game-started');
+    document.body.classList.remove('phase-jour', 'phase-nuit');
 
     updatePresence('online', null);
     currentGameId = null;
@@ -2463,7 +2536,6 @@ async function sendMobileChatMessage() {
   if (!text) return;
   if (!currentGameId) return;
 
-  // ✅ BLOQUÉ si la partie est lancée
   if (currentGameData?.enCours === true) {
     showMessage('❌ Le chat est fermé pendant la partie.');
     mobileChatInput.value = '';
@@ -2545,37 +2617,3 @@ renderGameLobby = function(data) {
     renderMobileChat();
   }
 };
-// ═══════════════════════════════════════════════════════════
-// 🎬 AFFICHAGE DE LA PHASE
-// ═══════════════════════════════════════════════════════════
-
-const NOMS_PHASES = {
-  'avant-crepuscule': 'Avant-Crépuscule',
-  'crepuscule':       'Crépuscule',
-  'minuit':           'Minuit',
-  'apres-minuit':     'Après-Minuit',
-  'aube':             'Aube',
-  'jour':             'Jour',
-  'vote':             'Vote du Village',
-  'soir':             'Soir',
-};
-
-function afficherPhase(phase, tour) {
-  const overlay = document.getElementById('phase-overlay');
-  const elNom = document.getElementById('phase-nom');
-  const elTour = document.getElementById('phase-tour');
-  if (!overlay || !elNom || !elTour) return;
-
-  overlay.classList.remove('hidden', 'nuit', 'jour');
-  overlay.dataset.phase = phase;
-
-  // Détermine si c'est une phase de NUIT ou de JOUR
-  const phasesNuit = ['avant-crepuscule', 'crepuscule', 'minuit', 'apres-minuit'];
-  const phasesJour = ['aube', 'jour', 'vote', 'soir'];
-
-  if (phasesNuit.includes(phase)) overlay.classList.add('nuit');
-  if (phasesJour.includes(phase)) overlay.classList.add('jour');
-
-  elNom.textContent = NOMS_PHASES[phase] || phase;
-  elTour.textContent = `Tour ${tour}`;
-}

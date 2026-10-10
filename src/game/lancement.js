@@ -276,6 +276,10 @@ export async function lancerPartieSiPossible(gameId) {
         rolesJoueurs: rolesJoueurs,
         joueursVivants: joueurs,
         joueursMorts: [],
+
+        // ✅ NOUVEAU : init du timer
+        phaseStartedAt: Date.now(),
+        phaseDuree: 15 * 1000,   // 15 sec pour avant-crepuscule
       });
 
       return { ok: true };

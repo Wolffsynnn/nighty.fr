@@ -2315,3 +2315,145 @@ function majBoutonsMaxPlayers() {
     btnPlusPlayers.classList.add('hidden');
   }
 }
+// ═══════════════════════════════════════════════════════════
+// 💬 MOBILE : Bulle chat + Chat plein écran
+// ═══════════════════════════════════════════════════════════
+
+const mobileChatBubble   = document.getElementById('mobile-chat-bubble');
+const mobileChatOverlay  = document.getElementById('mobile-chat-overlay');
+const mobileChatClose    = document.getElementById('mobile-chat-close');
+const mobileChatMessages = document.getElementById('mobile-chat-messages');
+const mobileChatInput    = document.getElementById('mobile-chat-input');
+const mobileChatSend     = document.getElementById('mobile-chat-send');
+const mobileChatVillage  = document.getElementById('mobile-chat-village');
+const mobileChatCount    = document.getElementById('mobile-chat-count');
+const mobileBtnMinus     = document.getElementById('mobile-btn-minus');
+const mobileBtnPlus      = document.getElementById('mobile-btn-plus');
+const mobileChatComp     = document.getElementById('mobile-chat-comp');
+
+function openMobileChat() {
+  if (!mobileChatOverlay) return;
+  document.body.classList.add('chat-open');
+  mobileChatOverlay.classList.remove('hidden');
+  renderMobileChat();
+  setTimeout(() => mobileChatInput?.focus(), 100);
+}
+
+function closeMobileChat() {
+  if (!mobileChatOverlay) return;
+  document.body.classList.remove('chat-open');
+  mobileChatOverlay.classList.add('hidden');
+}
+
+function renderMobileChat() {
+  if (!currentGameData) return;
+
+  if (mobileChatVillage) {
+    mobileChatVillage.textContent = currentGameData.villageName || 'Village';
+  }
+  if (mobileChatCount) {
+    mobileChatCount.textContent = `👥 ${currentGameData.players.length}/${currentGameData.maxPlayers}`;
+  }
+
+  if (mobileChatMessages) {
+    const messages = currentGameData.messages || [];
+    mobileChatMessages.innerHTML = messages.map(m => `
+      <div class="gl-chat-msg">
+        <span class="gl-chat-author">${m.pseudo} :</span>${m.text}
+      </div>
+    `).join('');
+    mobileChatMessages.scrollTop = mobileChatMessages.scrollHeight;
+  }
+}
+
+// Bulle → ouvre le chat
+safeOn(mobileChatBubble, 'click', openMobileChat);
+
+// ✖ → ferme
+safeOn(mobileChatClose, 'click', closeMobileChat);
+
+// Envoi de message (réutilise la logique existante)
+async function sendMobileChatMessage() {
+  const text = mobileChatInput?.value.trim();
+  if (!text) return;
+  if (!currentGameId) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
+
+  mobileChatInput.value = '';
+
+  try {
+    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+      messages: arrayUnion({
+        uid: user.uid,
+        pseudo: user.displayName,
+        text: text,
+        at: Date.now(),
+      }),
+    });
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+  }
+}
+
+safeOn(mobileChatSend, 'click', sendMobileChatMessage);
+safeOn(mobileChatInput, 'keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendMobileChatMessage();
+  }
+});
+
+// Boutons +/− (réutilisent changerMaxPlayers)
+safeOn(mobileBtnMinus, 'click', () => changerMaxPlayers(-1));
+safeOn(mobileBtnPlus,  'click', () => changerMaxPlayers(+1));
+
+// Composition
+safeOn(mobileChatComp, 'click', () => {
+  closeMobileChat();
+  setTimeout(() => btnComposition?.click(), 150);
+});
+
+// ═══════════════════════════════════════════════════════════
+// 🔄 Afficher/masquer la bulle selon l'écran actif (mobile)
+// ═══════════════════════════════════════════════════════════
+
+function updateMobileBubbleVisibility() {
+  if (!mobileChatBubble) return;
+
+  const isMobile = document.body.classList.contains('is-mobile');
+  if (!isMobile) return;
+
+  const activeScreen = document.querySelector('.screen:not(.hidden)');
+  if (!activeScreen) {
+    mobileChatBubble.classList.add('hidden');
+    return;
+  }
+
+  if (activeScreen.id === 'game-lobby-screen' && currentGameData) {
+    mobileChatBubble.classList.remove('hidden');
+  } else {
+    mobileChatBubble.classList.add('hidden');
+    closeMobileChat();
+  }
+}
+
+// Patch : appeler updateMobileBubbleVisibility quand on change d'écran
+const _origGoToScreen = goToScreen;
+goToScreen = function(screen) {
+  _origGoToScreen(screen);
+  updateMobileBubbleVisibility();
+};
+
+// Patch : mettre à jour la bulle/chat quand les données du lobby changent
+const _origRenderGameLobby = renderGameLobby;
+renderGameLobby = function(data) {
+  _origRenderGameLobby(data);
+  updateMobileBubbleVisibility();
+  if (document.body.classList.contains('chat-open')) {
+    renderMobileChat();
+  }
+};

@@ -519,5 +519,31 @@
   "></div>
 
   <script type="module" src="src/main.js"></script>
+
+  <!-- ===== MOBILE : Bulle chat flottante ===== -->
+<button id="mobile-chat-bubble" class="mobile-chat-bubble hidden" aria-label="Ouvrir le chat">
+  💬
+</button>
+
+<!-- ===== MOBILE : Chat plein écran ===== -->
+<div id="mobile-chat-overlay" class="mobile-chat-overlay hidden">
+  <div class="mobile-chat-topbar">
+    <button id="mobile-chat-close" class="mobile-chat-close" aria-label="Fermer">✖</button>
+    <span id="mobile-chat-village">Village</span>
+    <div class="mobile-chat-players">
+      <button id="mobile-btn-minus" class="gl-ctrl-btn">−</button>
+      <span id="mobile-chat-count">👥 0/0</span>
+      <button id="mobile-btn-plus" class="gl-ctrl-btn">+</button>
+    </div>
+    <button id="mobile-chat-comp" class="gl-btn">⚙️ Composition</button>
+  </div>
+
+  <div class="mobile-chat-messages" id="mobile-chat-messages"></div>
+
+  <div class="mobile-chat-input-wrapper">
+    <input type="text" id="mobile-chat-input" placeholder="Écris un message..." />
+    <button id="mobile-chat-send">➤</button>
+  </div>
+</div>
 </body>
 </html>

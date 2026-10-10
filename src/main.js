@@ -1512,6 +1512,12 @@ async function watchGame(gameId) {
     if (data.status === 'waiting') updatePresence('waiting', gameId);
     if (data.status === 'playing') updatePresence('playing', gameId);
 
+    // ✅ Si la partie est lancée → on passe à l'écran de jeu
+    if (data.enCours === true || data.status === 'playing') {
+      onPartieLancee(data);
+      return;
+    }
+
     renderGameLobby(data);
   });
 }
@@ -1531,6 +1537,24 @@ function renderGameLobby(data) {
   renderChat(data.messages || []);
 
   if (typeof majBoutonsMaxPlayers === 'function') majBoutonsMaxPlayers();
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🎮 PARTIE LANCÉE → écran de jeu
+// ═══════════════════════════════════════════════════════════
+
+function onPartieLancee(data) {
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const monRole = data.rolesJoueurs?.[user.uid] || null;
+
+  console.log('🎮 Partie lancée !');
+  console.log('🎭 Mon rôle :', monRole);
+
+  // TODO : afficher l'écran de jeu
+  // Pour l'instant, on affiche juste un message
+  showMessage(`🎭 Ton rôle : ${monRole || 'inconnu'}`);
 }
 
 function renderShareBar(data) {

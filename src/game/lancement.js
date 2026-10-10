@@ -205,57 +205,99 @@ export async function ecouterLancement(gameId, callbacks = {}) {
  * @param {string} gameId
  * @returns {Object} { ok, raison, data }
  */
+// ═══════════════════════════════════════════════════════════
+// 🚀 LANCEMENT EFFECTIF (anti-doublon + attribution des rôles)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Lance la partie de manière atomique.
+ * Utilise une transaction Firestore : le premier client qui écrit gagne.
+ *
+ * ✅ Attribue aussi les rôles aux joueurs (shuffle + assignation).
+ *
+ * @param {string} gameId
+ * @returns {Object} { ok, raison, data }
+ */
 export async function lancerPartieSiPossible(gameId) {
-  const { doc, runTransaction } = await getFirestoreFns();
-
-  try {
-    const gameRef = doc(window.firebaseDB, 'games', gameId);
-
-    const resultat = await runTransaction(window.firebaseDB, async (transaction) => {
-      const snap = await transaction.get(gameRef);
-      if (!snap.exists()) return { ok: false, raison: 'introuvable' };
-
-      const data = snap.data();
-
-      // ─── Déjà lancée ───
-      if (data.enCours === true) {
-        return { ok: false, raison: 'deja-en-cours' };
-      }
-
-      // ─── Partie pas pleine → on annule ───
-      const nbJoueurs = (data.players || []).length;
-      if (nbJoueurs < data.maxPlayers) {
-        transaction.update(gameRef, { lancementAt: null });
-        return { ok: false, raison: 'pas-plein' };
-      }
-
-      // ─── Lance la partie ───
-      transaction.update(gameRef, {
-        enCours: true,
-        phase: 'avant-crepuscule',
-        phaseIndex: 0,
-        tour: 1,
-        lancementAt: null,
-        startedAt: Date.now(),
+    const { doc, runTransaction } = await getFirestoreFns();
+  
+    try {
+      const gameRef = doc(window.firebaseDB, 'games', gameId);
+  
+      const resultat = await runTransaction(window.firebaseDB, async (transaction) => {
+        const snap = await transaction.get(gameRef);
+        if (!snap.exists()) return { ok: false, raison: 'introuvable' };
+  
+        const data = snap.data();
+  
+        // ─── Déjà lancée ───
+        if (data.enCours === true) {
+          return { ok: false, raison: 'deja-en-cours' };
+        }
+  
+        // ─── Partie pas pleine → on annule ───
+        const nbJoueurs = (data.players || []).length;
+        if (nbJoueurs < data.maxPlayers) {
+          transaction.update(gameRef, { lancementAt: null });
+          return { ok: false, raison: 'pas-plein' };
+        }
+  
+        // ═══════════════════════════════════════════════════
+        // 🎭 ATTRIBUTION DES RÔLES
+        // ═══════════════════════════════════════════════════════
+  
+        const composition = data.composition || [];
+        const joueurs = data.players || [];
+  
+        // Vérifie qu'on a bien autant de rôles que de joueurs
+        if (composition.length !== joueurs.length) {
+          console.warn('⚠️ Composition ≠ Joueurs → pas de lancement');
+          return { ok: false, raison: 'composition-invalide' };
+        }
+  
+        // ─── Mélange la composition (Fisher-Yates) ───
+        const rolesMelanges = [...composition];
+        for (let i = rolesMelanges.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [rolesMelanges[i], rolesMelanges[j]] = [rolesMelanges[j], rolesMelanges[i]];
+        }
+  
+        // ─── Assigne un rôle à chaque joueur ───
+        const rolesJoueurs = {};
+        joueurs.forEach((uid, index) => {
+          rolesJoueurs[uid] = rolesMelanges[index];
+        });
+  
+        // ─── Lance la partie avec les rôles ───
+        transaction.update(gameRef, {
+          enCours: true,
+          phase: 'avant-crepuscule',
+          phaseIndex: 0,
+          tour: 1,
+          lancementAt: null,
+          startedAt: Date.now(),
+          status: 'playing',           // ✅ Pour que les clients détectent le lancement
+          rolesJoueurs: rolesJoueurs,  // ✅ Les rôles de chacun
+          joueursVivants: joueurs,     // ✅ Tous vivants au départ
+          joueursMorts: [],            // ✅ Aucun mort au départ
+        });
+  
+        return { ok: true };
       });
-
-      return { ok: true };
-    });
-
-    if (resultat.ok) {
-      console.log(`🎮 Partie lancée !`);
-    } else {
-      console.log(`⏸️ Lancement refusé : ${resultat.raison}`);
+  
+      if (resultat.ok) {
+        console.log(`🎮 Partie lancée ! Rôles attribués.`);
+      } else {
+        console.log(`⏸️ Lancement refusé : ${resultat.raison}`);
+      }
+  
+      return resultat;
+  
+    } catch (err) {
+      console.log('⏸️ Transaction perdue (un autre client a lancé).');
+      return { ok: false, raison: 'transaction-perdue', err };
     }
-
-    return resultat;
-
-  } catch (err) {
-    // Erreur de transaction → un autre client a gagné la course
-    console.log('⏸️ Transaction perdue (un autre client a lancé).');
-    return { ok: false, raison: 'transaction-perdue', err };
   }
-}
 
 // ═══════════════════════════════════════════════════════════
 // 📦 EXPORTS

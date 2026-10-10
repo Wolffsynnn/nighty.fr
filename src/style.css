@@ -1852,77 +1852,87 @@ body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
   .game-lobby-chat { width: 260px; }
 }
 
-@media (max-width: 900px) {
-  .games-character,
-  .lobby-character {
-    display: none;
-  }
+/* ═══════════════════════════════════════════════════════════
+   📱 RESPONSIVE MOBILE (basé sur le vrai device)
+   ═══════════════════════════════════════════════════════════ */
 
-  .games-layout {
-    padding: 80px 16px 100px 16px;
-  }
-
-  .games-main { max-width: 100%; }
-
-  .tab-bar {
-    bottom: 8px;
-    padding: 6px 8px;
-    border-radius: 20px;
-  }
-
-  .tab-btn {
-    font-size: 0.62rem;
-    padding: 8px 2px;
-  }
-
-  .tab-icon { font-size: 1.1rem; }
-
-  .game-lobby-layout {
-    flex-direction: column;
-    padding: 90px 12px 90px 12px;
-  }
-
-  .game-lobby-chat {
-    width: 100%;
-    max-height: 250px;
-  }
-
-  .game-lobby-topbar {
-    top: 12px;
-    right: 12px;
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  #gl-village-name { max-width: 100px; font-size: 0.85rem !important; }
-  .game-lobby-topbar span { font-size: 0.8rem; }
-
-  .gl-btn {
-    padding: 8px 14px;
-    font-size: 0.8rem;
-  }
-
-  .gl-share-bar {
-    top: 12px;
-    padding: 8px 10px;
-    gap: 8px;
-    font-size: 0.8rem;
-  }
-
-  .gl-share-value {
-    font-size: 0.8rem;
-    padding: 2px 6px;
-  }
-
-  .gl-share-copy {
-    padding: 4px 8px;
-    font-size: 0.75rem;
-  }
-
-  body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
-    top: 70px;
-  }
-}
+   body.is-mobile .games-character,
+   body.is-mobile .lobby-character {
+     display: none;
+   }
+   
+   body.is-mobile .games-layout {
+     padding: 80px 16px 100px 16px;
+   }
+   
+   body.is-mobile .games-main { max-width: 100%; }
+   
+   /* Barre d'onglets */
+   body.is-mobile .tab-bar {
+     bottom: 8px;
+     padding: 6px 8px;
+     border-radius: 20px;
+   }
+   
+   body.is-mobile .tab-btn {
+     font-size: 0.62rem;
+     padding: 8px 2px;
+   }
+   
+   body.is-mobile .tab-icon { font-size: 1.1rem; }
+   
+   /* Lobby de partie */
+   body.is-mobile .game-lobby-layout {
+     flex-direction: column;
+     padding: 90px 8px 90px 8px;
+   }
+   
+   body.is-mobile .game-lobby-chat {
+     width: 100%;
+     max-height: 250px;
+   }
+   
+   body.is-mobile .game-lobby-topbar {
+     top: 12px;
+     right: 12px;
+     padding: 8px 12px;
+     gap: 8px;
+   }
+   
+   body.is-mobile #gl-village-name {
+     max-width: 100px;
+     font-size: 0.85rem !important;
+   }
+   
+   body.is-mobile .game-lobby-topbar span {
+     font-size: 0.8rem;
+   }
+   
+   body.is-mobile .gl-btn {
+     padding: 8px 14px;
+     font-size: 0.8rem;
+   }
+   
+   body.is-mobile .gl-share-bar {
+     top: 12px;
+     padding: 8px 10px;
+     gap: 8px;
+     font-size: 0.8rem;
+   }
+   
+   body.is-mobile .gl-share-value {
+     font-size: 0.8rem;
+     padding: 2px 6px;
+   }
+   
+   body.is-mobile .gl-share-copy {
+     padding: 4px 8px;
+     font-size: 0.75rem;
+   }
+   
+   body.is-mobile:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
+     top: 70px;
+   }
 
 /* ===================== STATUT EN LIGNE DES AMIS ===================== */
 .friend-card {
@@ -2522,12 +2532,59 @@ body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   📱 LOBBY DE PARTIE — MOBILE (basé sur le vrai device)
+   📱 LOBBY DE PARTIE — MOBILE
    ═══════════════════════════════════════════════════════════ */
+
+/* Image de fond mobile */
 body.is-mobile #game-lobby-screen .bg-layer {
   background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
   background-size: cover;
   background-position: center top;
+}
+
+body.is-mobile .game-lobby-layout {
+  padding: 90px 8px 90px 8px;
+}
+
+body.is-mobile .game-lobby-players {
+  padding: 0;
+  overflow: visible;
+}
+
+/* Les slots prennent toute la largeur */
+body.is-mobile .gl-players-slots {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+/* Slots plus petits sur mobile */
+body.is-mobile .gl-slot {
+  width: 60px;
+  height: 90px;
+}
+
+body.is-mobile .gl-slot-avatar {
+  height: 75px;
+}
+
+body.is-mobile .gl-slot-pseudo {
+  font-size: 9px;
+  top: -22px;
+  padding: 2px 6px;
+}
+
+body.is-mobile .gl-slot.host::before {
+  font-size: 16px;
+  top: -16px;
+}
+
+body.is-mobile .gl-slot::after {
+  width: 45px;
+  height: 10px;
+  bottom: -4px;
 }
 /* 🔍 TEST — supprime-le après */
 /* body { border: 8px solid red !important; } */

@@ -1144,12 +1144,14 @@ const POSITIONS_16_PC = [
   { x: 55, y: 96 }, { x: 64, y: 97 }, { x: 73, y: 99 }, { x: 82, y: 103 },
 ];
 
-// ─── Positions pour MOBILE (4 rangées décalées) ───
+// ─── Positions pour MOBILE (2 rangées de 8, dans l'herbe) ───
 const POSITIONS_16_MOBILE = [
-  { x: 5,  y: 45 }, { x: 15, y: 45 }, { x: 25, y: 45 }, { x: 35, y: 45 },
-  { x: 10, y: 58 }, { x: 20, y: 58 }, { x: 30, y: 58 }, { x: 40, y: 58 },
-  { x: 5,  y: 71 }, { x: 15, y: 71 }, { x: 25, y: 71 }, { x: 35, y: 71 },
-  { x: 10, y: 84 }, { x: 20, y: 84 }, { x: 30, y: 84 }, { x: 40, y: 84 },
+  // Rangée 1 (y = 38%)
+  { x: 8,  y: 38 }, { x: 20, y: 38 }, { x: 32, y: 38 }, { x: 44, y: 38 },
+  { x: 56, y: 38 }, { x: 68, y: 38 }, { x: 80, y: 38 }, { x: 92, y: 38 },
+  // Rangée 2 (y = 58%)
+  { x: 8,  y: 58 }, { x: 20, y: 58 }, { x: 32, y: 58 }, { x: 44, y: 58 },
+  { x: 56, y: 58 }, { x: 68, y: 58 }, { x: 80, y: 58 }, { x: 92, y: 58 },
 ];
 
 safeOn(cgType, 'change', () => {

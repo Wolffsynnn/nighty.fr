@@ -2824,3 +2824,26 @@ body.is-mobile.chat-open .mobile-chat-bubble {
 
 /* Quand le chat est ouvert : cache aussi la bulle (au cas où) */
 body.is-mobile.chat-open .mobile-chat-bubble.hidden { display: none; }
+/* ═══════════════════════════════════════════════════════════
+   📱 MOBILE : Cache le chat desktop + topbar + lien
+   ═══════════════════════════════════════════════════════════ */
+
+/* Chat desktop caché sur mobile (on utilise la bulle) */
+body.is-mobile .game-lobby-chat {
+  display: none !important;
+}
+
+/* Topbar cachée sur mobile quand le chat est fermé */
+body.is-mobile:not(.chat-open) .game-lobby-topbar {
+  display: none !important;
+}
+
+/* Bandeau Lien caché sur mobile quand le chat est fermé */
+body.is-mobile:not(.chat-open) .gl-share-bar {
+  display: none !important;
+}
+
+/* Bouton "back" en haut à gauche : le garder quand même (pour quitter) */
+body.is-mobile:not(.chat-open) .back-btn {
+  display: flex !important;
+}

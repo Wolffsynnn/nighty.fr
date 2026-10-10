@@ -50,7 +50,7 @@ function safeOn(el, event, cb) {
 }
 
 let blockAutoRedirect = false;
-
+let roleRevealDejaVu = false;
 let choixAnge = 'none';
 let choixMaire = 'none';
 let choixAdjoint = 'non';
@@ -72,6 +72,7 @@ const btnRefreshGames = document.getElementById('btn-refresh-games');
 const gamesList       = document.getElementById('games-list');
 const gamesTabs       = document.querySelectorAll('.games-tab');
 let currentGamesTab   = 'public';
+
 // ===== RÉVÉLATION DU RÔLE =====
 const roleRevealOverlay = document.getElementById('role-reveal-overlay');
 const roleRevealIcon    = document.getElementById('role-reveal-icon');
@@ -1215,7 +1216,7 @@ let currentGameId = null;
 let currentGameData = null;
 let gameUnsubscribe = null;
 let currentPlayerSlots = {};
-let lancementUnsubscribe = null;   // ✅ AJOUTÉ
+let lancementUnsubscribe = null;
 
 // ─── Positions pour PC (ancien système en arc) ───
 const POSITIONS_16_PC = [
@@ -1243,7 +1244,6 @@ function ecouterLeLancement(gameId) {
     lancementUnsubscribe = null;
   }
 
-  // Récupère les éléments du compte à rebours
   const overlay = document.getElementById('countdown-overlay');
   const numberEl = document.getElementById('countdown-number');
 
@@ -1256,7 +1256,6 @@ function ecouterLeLancement(gameId) {
     overlay.classList.remove('hidden');
     numberEl.textContent = sec;
 
-    // Change la couleur selon le temps restant
     numberEl.classList.remove('warn', 'danger');
     if (sec <= 3) {
       numberEl.classList.add('danger');
@@ -1278,8 +1277,6 @@ function ecouterLeLancement(gameId) {
     onLance: () => {
       console.log('🎮 PARTIE LANCÉE !');
       cacherCountdown();
-      // TODO : passer à l'écran de jeu (partie en cours)
-      // → À FAIRE PLUS TARD
     },
   }).then(unsub => {
     lancementUnsubscribe = unsub;
@@ -1427,7 +1424,7 @@ safeOn(cgCreate, 'click', async () => {
     goToScreen(gameLobbyScreen);
 
     watchGame(currentGameId);
-    ecouterLeLancement(currentGameId);   // ✅ AJOUTÉ
+    ecouterLeLancement(currentGameId);
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1479,7 +1476,7 @@ async function joinGame(gameId) {
       updatePresence('waiting', gameId);
       goToScreen(gameLobbyScreen);
       watchGame(gameId);
-      ecouterLeLancement(gameId);   // ✅ AJOUTÉ
+      ecouterLeLancement(gameId);
       return;
     }
 
@@ -1511,7 +1508,7 @@ async function joinGame(gameId) {
     showMessage('✅ Tu as rejoint la partie !');
     goToScreen(gameLobbyScreen);
     watchGame(gameId);
-    ecouterLeLancement(gameId);   // ✅ AJOUTÉ
+    ecouterLeLancement(gameId);
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1549,6 +1546,10 @@ async function watchGame(gameId) {
 
     // ✅ Si la partie est lancée → on passe à l'écran de jeu
     if (data.enCours === true || data.status === 'playing') {
+      // ✅ Cache le countdown s'il est encore visible
+      const overlay = document.getElementById('countdown-overlay');
+      if (overlay) overlay.classList.add('hidden');
+
       onPartieLancee(data);
       return;
     }
@@ -1590,8 +1591,9 @@ function onPartieLancee(data) {
   // ✅ Cache les éléments du lobby
   document.body.classList.add('game-started');
 
-  // ✅ Affiche la révélation du rôle
-  if (monRole) {
+  // ✅ N'affiche la carte qu'UNE SEULE FOIS
+  if (monRole && !roleRevealDejaVu) {
+    roleRevealDejaVu = true;
     showRoleReveal(monRole);
   }
 }
@@ -1763,6 +1765,9 @@ async function moveMyCharacterToSlot(targetSlotIndex) {
   if (!user) return;
   if (!currentGameId) return;
 
+  // ✅ Bloqué si la partie est lancée
+  if (currentGameData?.enCours === true) return;
+
   const { doc, updateDoc } = await getFirestoreFns();
   const playerSlots = { ...currentPlayerSlots };
   const myCurrentSlot = playerSlots[user.uid];
@@ -1821,6 +1826,13 @@ async function sendChatMessage() {
   const text = glChatInput?.value.trim();
   if (!text) return;
   if (!currentGameId) return;
+
+  // ✅ BLOQUÉ si la partie est lancée
+  if (currentGameData?.enCours === true) {
+    showMessage('❌ Le chat est fermé pendant la partie.');
+    glChatInput.value = '';
+    return;
+  }
 
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
@@ -2026,7 +2038,6 @@ async function leaveGame() {
         showMessage('🚪 Tu as quitté la partie');
       }
 
-      // ✅ Annule le lancement dans TOUS les cas
       await annulerLancement(currentGameId);
     }
 
@@ -2035,19 +2046,20 @@ async function leaveGame() {
       gameUnsubscribe = null;
     }
 
-    // ✅ Coupe l'écoute du lancement
     if (lancementUnsubscribe) {
       lancementUnsubscribe();
       lancementUnsubscribe = null;
     }
 
-       // ✅ Enlève la classe "partie lancée"
-       document.body.classList.remove('game-started');
+    // ✅ Reset le flag de révélation + enlève la classe "partie lancée"
+    roleRevealDejaVu = false;
+    document.body.classList.remove('game-started');
 
-       updatePresence('online', null);
-       currentGameId = null;
-       currentGameData = null;
-       goToScreen(publicGamesScreen);
+    updatePresence('online', null);
+    currentGameId = null;
+    currentGameData = null;
+    goToScreen(publicGamesScreen);
+
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
   }
@@ -2069,7 +2081,6 @@ const compCountMax       = document.getElementById('comp-count-max');
 const compGridBase       = document.getElementById('comp-grid-base');
 const compGridVariants   = document.getElementById('comp-grid-variants');
 const compGridNightmares = document.getElementById('comp-grid-nightmares');
-const btnStartGame       = document.getElementById('btn-start-game');
 const btnComposition     = document.getElementById('btn-composition');
 const compAdjointOption  = document.getElementById('comp-adjoint-option');
 
@@ -2280,70 +2291,6 @@ safeOn(compValidate, 'click', async () => {
   }
 });
 
-function majBoutonLancer() {
-  if (!btnStartGame || !currentGameData) return;
-
-  const user = window.firebaseAuth?.currentUser;
-  const isHost = user && currentGameData.hostId === user.uid;
-  const compoValidee = currentGameData.compositionValidee === true;
-  const joueursPleins = currentGameData.players.length === currentGameData.maxPlayers;
-
-  if (isHost && compoValidee) {
-    btnStartGame.classList.remove('hidden');
-    btnStartGame.disabled = !joueursPleins;
-    btnStartGame.textContent = joueursPleins
-      ? '▶️ Lancer la partie'
-      : `⏳ En attente (${currentGameData.players.length}/${currentGameData.maxPlayers})`;
-  } else {
-    btnStartGame.classList.add('hidden');
-  }
-}
-
-async function lancerPartie() {
-  const user = window.firebaseAuth?.currentUser;
-  if (!user || !currentGameData) return;
-  if (currentGameData.hostId !== user.uid) return;
-
-  if (!currentGameData.composition || currentGameData.composition.length === 0) {
-    showMessage('❌ La composition n\'est pas validée.');
-    return;
-  }
-  if (currentGameData.players.length !== currentGameData.maxPlayers) {
-    showMessage('❌ La partie n\'est pas complète.');
-    return;
-  }
-
-  const rolesMelanges = [...currentGameData.composition];
-  for (let i = rolesMelanges.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [rolesMelanges[i], rolesMelanges[j]] = [rolesMelanges[j], rolesMelanges[i]];
-  }
-
-  const joueurs = currentGameData.players;
-  const rolesJoueurs = {};
-  joueurs.forEach((uid, index) => {
-    rolesJoueurs[uid] = rolesMelanges[index];
-  });
-
-  const { doc, updateDoc } = await getFirestoreFns();
-
-  try {
-    await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
-      status: 'playing',
-      phase: 'avant-crepuscule',
-      tour: 1,
-      rolesJoueurs: rolesJoueurs,
-      joueursVivants: joueurs,
-      joueursMorts: [],
-      startedAt: Date.now(),
-    });
-
-    showMessage('🎮 La partie commence !');
-  } catch (err) {
-    showMessage('❌ ' + (err.code || err.message));
-  }
-}
-
 // ═══════════════════════════════════════════════════════════
 // 🎯 RÔLES SECONDAIRES - Boutons radio
 // ═══════════════════════════════════════════════════════════
@@ -2510,6 +2457,13 @@ async function sendMobileChatMessage() {
   const text = mobileChatInput?.value.trim();
   if (!text) return;
   if (!currentGameId) return;
+
+  // ✅ BLOQUÉ si la partie est lancée
+  if (currentGameData?.enCours === true) {
+    showMessage('❌ Le chat est fermé pendant la partie.');
+    mobileChatInput.value = '';
+    return;
+  }
 
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;

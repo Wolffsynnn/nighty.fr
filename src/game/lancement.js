@@ -2,8 +2,6 @@
 // 🚀 LANCEMENT AUTOMATIQUE DE LA PARTIE
 // ═══════════════════════════════════════════════════════════
 //
-// Ce fichier gère le démarrage automatique quand la partie est pleine.
-//
 // Mécanique :
 //   1. Quand un joueur rejoint → on vérifie si la partie est pleine
 //   2. Si pleine → on écrit `lancementAt = maintenant + 8 sec`
@@ -11,6 +9,7 @@
 //   4. Si un joueur QUITTE → on annule `lancementAt`
 //   5. À la fin des 8 sec → le premier client à le voir lance
 //      (transaction Firestore = anti-doublon)
+//   6. Le lancement attribue les rôles aux joueurs (shuffle)
 // ═══════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
@@ -107,11 +106,13 @@ export async function annulerLancement(gameId) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🎧 ÉCOUTER LE LANCEMENT
+// 🎧 ÉCOUTER LE LANCEMENT (VERSION FIXÉE — UNE SEULE FOIS)
 // ═══════════════════════════════════════════════════════════
 
 /**
  * Écoute en temps réel l'état de lancement de la partie.
+ *
+ * ✅ FIX : ne s'arrête plus à 0 → lance directement sans afficher "0"
  *
  * @param {string} gameId
  * @param {Object} callbacks
@@ -123,8 +124,16 @@ export async function annulerLancement(gameId) {
 export async function ecouterLancement(gameId, callbacks = {}) {
   const { doc, onSnapshot } = await getFirestoreFns();
 
-  let dernierLancementAt = null;
   let timerInterval = null;
+  let dernierLancementAt = null;
+  let dejaLance = false;
+
+  function stopperTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
 
   const unsubscribe = onSnapshot(
     doc(window.firebaseDB, 'games', gameId),
@@ -132,50 +141,50 @@ export async function ecouterLancement(gameId, callbacks = {}) {
       if (!snap.exists()) return;
       const data = snap.data();
 
-      // ─── Partie lancée ───
+      // ─── Partie lancée → on stoppe TOUT ───
       if (data.enCours === true) {
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          timerInterval = null;
-        }
-        if (typeof callbacks.onLance === 'function') {
+        stopperTimer();
+        dernierLancementAt = null;
+
+        if (!dejaLance && typeof callbacks.onLance === 'function') {
+          dejaLance = true;
           callbacks.onLance(data);
         }
         return;
       }
 
-      // ─── Lancement annulé (joueur a quitté) ───
+      // Reset du flag si la partie repasse en attente
+      if (dejaLance) dejaLance = false;
+
+      // ─── Lancement annulé ───
       if (!data.lancementAt && dernierLancementAt) {
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          timerInterval = null;
-        }
+        stopperTimer();
+        dernierLancementAt = null;
         if (typeof callbacks.onAnnule === 'function') {
           callbacks.onAnnule();
         }
-        dernierLancementAt = null;
         return;
       }
 
       // ─── Nouveau compte à rebours ───
       if (data.lancementAt && data.lancementAt !== dernierLancementAt) {
         dernierLancementAt = data.lancementAt;
-
-        if (timerInterval) clearInterval(timerInterval);
+        stopperTimer();
 
         timerInterval = setInterval(() => {
+          // Sécurité : si le timer a été reset entre-temps, on stop
+          if (!dernierLancementAt) {
+            stopperTimer();
+            return;
+          }
+
           const restant = dernierLancementAt - Date.now();
 
+          // ✅ FIX : on ne s'arrête plus à 0 → on lance direct
           if (restant <= 0) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-
-            // ✅ Le premier client qui voit la fin tente de lancer
+            stopperTimer();
+            dernierLancementAt = null;
             lancerPartieSiPossible(gameId);
-
-            if (typeof callbacks.onCountdown === 'function') {
-              callbacks.onCountdown(0);
-            }
             return;
           }
 
@@ -188,104 +197,11 @@ export async function ecouterLancement(gameId, callbacks = {}) {
   );
 
   return () => {
-    if (timerInterval) clearInterval(timerInterval);
+    stopperTimer();
     unsubscribe();
   };
 }
 
-export async function ecouterLancement(gameId, callbacks = {}) {
-    const { doc, onSnapshot } = await getFirestoreFns();
-  
-    let timerInterval = null;
-    let dernierLancementAt = null;
-    let dejaLance = false;
-  
-    function stopperTimer() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-    }
-  
-    const unsubscribe = onSnapshot(
-      doc(window.firebaseDB, 'games', gameId),
-      (snap) => {
-        if (!snap.exists()) return;
-        const data = snap.data();
-  
-        // ─── Partie lancée → on stoppe TOUT ───
-        if (data.enCours === true) {
-          stopperTimer();
-          dernierLancementAt = null;
-  
-          if (!dejaLance && typeof callbacks.onLance === 'function') {
-            dejaLance = true;
-            callbacks.onLance(data);
-          }
-          return;
-        }
-  
-        // Reset du flag si la partie repasse en attente (edge case)
-        if (dejaLance) dejaLance = false;
-  
-        // ─── Lancement annulé ───
-        if (!data.lancementAt && dernierLancementAt) {
-          stopperTimer();
-          dernierLancementAt = null;
-          if (typeof callbacks.onAnnule === 'function') {
-            callbacks.onAnnule();
-          }
-          return;
-        }
-  
-        // ─── Nouveau compte à rebours ───
-        if (data.lancementAt && data.lancementAt !== dernierLancementAt) {
-          dernierLancementAt = data.lancementAt;
-          stopperTimer();
-  
-          timerInterval = setInterval(() => {
-            // ✅ Sécurité : si le timer a été reset entre-temps, on stop
-            if (!dernierLancementAt) {
-              stopperTimer();
-              return;
-            }
-  
-            const restant = dernierLancementAt - Date.now();
-  
-            // ✅ FIX : on ne s'arrête plus à 0 → on lance direct sans afficher "0"
-            if (restant <= 0) {
-              stopperTimer();
-              dernierLancementAt = null;   // ← Important : empêche le timer de re-render
-              lancerPartieSiPossible(gameId);
-              return;
-            }
-  
-            if (typeof callbacks.onCountdown === 'function') {
-              callbacks.onCountdown(restant);
-            }
-          }, 100);
-        }
-      }
-    );
-  
-    return () => {
-      stopperTimer();
-      unsubscribe();
-    };
-  }
-
-// ═══════════════════════════════════════════════════════════
-// 🚀 LANCEMENT EFFECTIF (anti-doublon)
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Lance la partie de manière atomique.
- * Utilise une transaction Firestore : le premier client qui écrit gagne,
- * les autres voient que c'est déjà fait et abandonnent.
- *
- * @param {string} gameId
- * @returns {Object} { ok, raison, data }
- */
 // ═══════════════════════════════════════════════════════════
 // 🚀 LANCEMENT EFFECTIF (anti-doublon + attribution des rôles)
 // ═══════════════════════════════════════════════════════════
@@ -300,85 +216,84 @@ export async function ecouterLancement(gameId, callbacks = {}) {
  * @returns {Object} { ok, raison, data }
  */
 export async function lancerPartieSiPossible(gameId) {
-    const { doc, runTransaction } = await getFirestoreFns();
-  
-    try {
-      const gameRef = doc(window.firebaseDB, 'games', gameId);
-  
-      const resultat = await runTransaction(window.firebaseDB, async (transaction) => {
-        const snap = await transaction.get(gameRef);
-        if (!snap.exists()) return { ok: false, raison: 'introuvable' };
-  
-        const data = snap.data();
-  
-        // ─── Déjà lancée ───
-        if (data.enCours === true) {
-          return { ok: false, raison: 'deja-en-cours' };
-        }
-  
-        // ─── Partie pas pleine → on annule ───
-        const nbJoueurs = (data.players || []).length;
-        if (nbJoueurs < data.maxPlayers) {
-          transaction.update(gameRef, { lancementAt: null });
-          return { ok: false, raison: 'pas-plein' };
-        }
-  
-        // ═══════════════════════════════════════════════════
-        // 🎭 ATTRIBUTION DES RÔLES
-        // ═══════════════════════════════════════════════════════
-  
-        const composition = data.composition || [];
-        const joueurs = data.players || [];
-  
-        // Vérifie qu'on a bien autant de rôles que de joueurs
-        if (composition.length !== joueurs.length) {
-          console.warn('⚠️ Composition ≠ Joueurs → pas de lancement');
-          return { ok: false, raison: 'composition-invalide' };
-        }
-  
-        // ─── Mélange la composition (Fisher-Yates) ───
-        const rolesMelanges = [...composition];
-        for (let i = rolesMelanges.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [rolesMelanges[i], rolesMelanges[j]] = [rolesMelanges[j], rolesMelanges[i]];
-        }
-  
-        // ─── Assigne un rôle à chaque joueur ───
-        const rolesJoueurs = {};
-        joueurs.forEach((uid, index) => {
-          rolesJoueurs[uid] = rolesMelanges[index];
-        });
-  
-        // ─── Lance la partie avec les rôles ───
-        transaction.update(gameRef, {
-          enCours: true,
-          phase: 'avant-crepuscule',
-          phaseIndex: 0,
-          tour: 1,
-          lancementAt: null,
-          startedAt: Date.now(),
-          status: 'playing',           // ✅ Pour que les clients détectent le lancement
-          rolesJoueurs: rolesJoueurs,  // ✅ Les rôles de chacun
-          joueursVivants: joueurs,     // ✅ Tous vivants au départ
-          joueursMorts: [],            // ✅ Aucun mort au départ
-        });
-  
-        return { ok: true };
-      });
-  
-      if (resultat.ok) {
-        console.log(`🎮 Partie lancée ! Rôles attribués.`);
-      } else {
-        console.log(`⏸️ Lancement refusé : ${resultat.raison}`);
+  const { doc, runTransaction } = await getFirestoreFns();
+
+  try {
+    const gameRef = doc(window.firebaseDB, 'games', gameId);
+
+    const resultat = await runTransaction(window.firebaseDB, async (transaction) => {
+      const snap = await transaction.get(gameRef);
+      if (!snap.exists()) return { ok: false, raison: 'introuvable' };
+
+      const data = snap.data();
+
+      // ─── Déjà lancée ───
+      if (data.enCours === true) {
+        return { ok: false, raison: 'deja-en-cours' };
       }
-  
-      return resultat;
-  
-    } catch (err) {
-      console.log('⏸️ Transaction perdue (un autre client a lancé).');
-      return { ok: false, raison: 'transaction-perdue', err };
+
+      // ─── Partie pas pleine → on annule ───
+      const nbJoueurs = (data.players || []).length;
+      if (nbJoueurs < data.maxPlayers) {
+        transaction.update(gameRef, { lancementAt: null });
+        return { ok: false, raison: 'pas-plein' };
+      }
+
+      // ═══════════════════════════════════════════════════
+      // 🎭 ATTRIBUTION DES RÔLES
+      // ═══════════════════════════════════════════════════
+
+      const composition = data.composition || [];
+      const joueurs = data.players || [];
+
+      if (composition.length !== joueurs.length) {
+        console.warn('⚠️ Composition ≠ Joueurs → pas de lancement');
+        return { ok: false, raison: 'composition-invalide' };
+      }
+
+      // ─── Mélange (Fisher-Yates) ───
+      const rolesMelanges = [...composition];
+      for (let i = rolesMelanges.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rolesMelanges[i], rolesMelanges[j]] = [rolesMelanges[j], rolesMelanges[i]];
+      }
+
+      // ─── Assigne un rôle à chaque joueur ───
+      const rolesJoueurs = {};
+      joueurs.forEach((uid, index) => {
+        rolesJoueurs[uid] = rolesMelanges[index];
+      });
+
+      // ─── Lance la partie avec les rôles ───
+      transaction.update(gameRef, {
+        enCours: true,
+        phase: 'avant-crepuscule',
+        phaseIndex: 0,
+        tour: 1,
+        lancementAt: null,
+        startedAt: Date.now(),
+        status: 'playing',
+        rolesJoueurs: rolesJoueurs,
+        joueursVivants: joueurs,
+        joueursMorts: [],
+      });
+
+      return { ok: true };
+    });
+
+    if (resultat.ok) {
+      console.log(`🎮 Partie lancée ! Rôles attribués.`);
+    } else {
+      console.log(`⏸️ Lancement refusé : ${resultat.raison}`);
     }
+
+    return resultat;
+
+  } catch (err) {
+    console.log('⏸️ Transaction perdue (un autre client a lancé).');
+    return { ok: false, raison: 'transaction-perdue', err };
   }
+}
 
 // ═══════════════════════════════════════════════════════════
 // 📦 EXPORTS

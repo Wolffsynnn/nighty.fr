@@ -23,12 +23,14 @@ body {
   justify-content: center;
   align-items: center;
   opacity: 1;
+  visibility: visible;
   transition: opacity 0.6s ease;
 }
 
 .screen.hidden {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
 }
 
 /* ===== FOND PIXEL ART ===== */
@@ -44,6 +46,7 @@ body {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   filter: brightness(1.05) contrast(1.05) saturate(1.1);
+  pointer-events: none;
 }
 
 @keyframes bgZoom {
@@ -344,6 +347,9 @@ body {
   cursor: pointer;
   font-weight: bold;
   transition: all 0.25s ease;
+  /* Assure que le bouton est cliquable sur mobile */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .mode-play:hover {
@@ -363,12 +369,14 @@ body {
   z-index: 100;
   backdrop-filter: blur(6px);
   opacity: 1;
-  transition: opacity 0.3s ease;
+  visibility: visible;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .popup-overlay.hidden {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
 }
 
 .popup-box {
@@ -654,7 +662,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  pointer-events: none;
+  pointer-events: none !important;
   opacity: 0;
   transition: opacity 0.4s ease;
 }
@@ -1856,83 +1864,109 @@ body:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
    📱 RESPONSIVE MOBILE (basé sur le vrai device)
    ═══════════════════════════════════════════════════════════ */
 
-   body.is-mobile .games-character,
-   body.is-mobile .lobby-character {
-     display: none;
-   }
-   
-   body.is-mobile .games-layout {
-     padding: 80px 16px 100px 16px;
-   }
-   
-   body.is-mobile .games-main { max-width: 100%; }
-   
-   /* Barre d'onglets */
-   body.is-mobile .tab-bar {
-     bottom: 8px;
-     padding: 6px 8px;
-     border-radius: 20px;
-   }
-   
-   body.is-mobile .tab-btn {
-     font-size: 0.62rem;
-     padding: 8px 2px;
-   }
-   
-   body.is-mobile .tab-icon { font-size: 1.1rem; }
-   
-   /* Lobby de partie */
-   body.is-mobile .game-lobby-layout {
-     flex-direction: column;
-     padding: 90px 8px 90px 8px;
-   }
-   
-   body.is-mobile .game-lobby-chat {
-     width: 100%;
-     max-height: 250px;
-   }
-   
-   body.is-mobile .game-lobby-topbar {
-     top: 12px;
-     right: 12px;
-     padding: 8px 12px;
-     gap: 8px;
-   }
-   
-   body.is-mobile #gl-village-name {
-     max-width: 100px;
-     font-size: 0.85rem !important;
-   }
-   
-   body.is-mobile .game-lobby-topbar span {
-     font-size: 0.8rem;
-   }
-   
-   body.is-mobile .gl-btn {
-     padding: 8px 14px;
-     font-size: 0.8rem;
-   }
-   
-   body.is-mobile .gl-share-bar {
-     top: 12px;
-     padding: 8px 10px;
-     gap: 8px;
-     font-size: 0.8rem;
-   }
-   
-   body.is-mobile .gl-share-value {
-     font-size: 0.8rem;
-     padding: 2px 6px;
-   }
-   
-   body.is-mobile .gl-share-copy {
-     padding: 4px 8px;
-     font-size: 0.75rem;
-   }
-   
-   body.is-mobile:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
-     top: 70px;
-   }
+body.is-mobile .games-character,
+body.is-mobile .lobby-character {
+  display: none;
+}
+
+body.is-mobile .games-layout {
+  padding: 80px 16px 100px 16px;
+}
+
+body.is-mobile .games-main { max-width: 100%; }
+
+/* Barre d'onglets */
+body.is-mobile .tab-bar {
+  bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 20px;
+}
+
+body.is-mobile .tab-btn {
+  font-size: 0.62rem;
+  padding: 8px 2px;
+}
+
+body.is-mobile .tab-icon { font-size: 1.1rem; }
+
+/* Lobby de partie */
+body.is-mobile .game-lobby-layout {
+  flex-direction: column;
+  padding: 90px 8px 90px 8px;
+}
+
+body.is-mobile .game-lobby-chat {
+  width: 100%;
+  max-height: 250px;
+}
+
+body.is-mobile .game-lobby-topbar {
+  top: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+body.is-mobile #gl-village-name {
+  max-width: 100px;
+  font-size: 0.85rem !important;
+}
+
+body.is-mobile .game-lobby-topbar span {
+  font-size: 0.8rem;
+}
+
+body.is-mobile .gl-btn {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+}
+
+body.is-mobile .gl-share-bar {
+  top: 12px;
+  padding: 8px 10px;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+body.is-mobile .gl-share-value {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+}
+
+body.is-mobile .gl-share-copy {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+body.is-mobile:has(.gl-share-bar:not(.hidden)) .game-lobby-topbar {
+  top: 70px;
+}
+
+/* ===== FIX MOBILE : pas de hover qui décale ===== */
+body.is-mobile .mode-card:hover {
+  transform: none;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 150, 50, 0.12);
+}
+
+body.is-mobile .mode-play:hover {
+  transform: none;
+}
+
+body.is-mobile .mode-play:active {
+  transform: scale(0.97);
+  background: #ffc670;
+}
+
+body.is-mobile .game-card:hover {
+  transform: none;
+}
+
+/* Fix : empêche les .screen cachés de bloquer les clics */
+body.is-mobile .screen.hidden .bg-layer,
+body.is-mobile .screen.hidden canvas {
+  pointer-events: none;
+  visibility: hidden;
+}
 
 /* ===================== STATUT EN LIGNE DES AMIS ===================== */
 .friend-card {
@@ -2586,5 +2620,3 @@ body.is-mobile .gl-slot::after {
   height: 10px;
   bottom: -4px;
 }
-/* 🔍 TEST — supprime-le après */
-/* body { border: 8px solid red !important; } */

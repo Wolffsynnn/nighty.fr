@@ -48,7 +48,23 @@ async function ajouterMessage(gameId, msg) {
       text: msg.text,
       at: Date.now(),
       systeme: msg.systeme || false,
-      pour: msg.pour || null,   // null = public, uid = privé
+      pour: msg.pour || null,
+    })
+  });
+}
+
+async function ajouterMessageVoyance(gameId, uid, ciblePseudo, roleId) {
+  const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
+  await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+    messages: arrayUnion({
+      pseudo: '🔮 Vision',
+      text: `Tu vois que ${ciblePseudo} est : ${getRoleName(roleId)}`,
+      at: Date.now(),
+      systeme: true,
+      pour: uid,
+      voyance: true,
+      ciblePseudo,
+      roleId,
     })
   });
 }
@@ -59,10 +75,6 @@ async function ajouterMessage(gameId, msg) {
 
 async function resoudreCrepuscule(gameId, data, actions, tour) {
   const roles = data.rolesJoueurs || {};
-  const pseudos = {};
-  data.players.forEach((uid, i) => {
-    pseudos[uid] = data.playersPseudo[i];
-  });
 
   for (const action of actions) {
     if (action.type !== 'cible') continue;
@@ -71,22 +83,14 @@ async function resoudreCrepuscule(gameId, data, actions, tour) {
     // ─── VOYANTE ───
     if (role === 'voyante') {
       const roleVu = roles[action.cible];
-      await ajouterMessage(gameId, {
-        text: `🔮 Tu vois que ${action.ciblePseudo} est : ${getRoleName(roleVu)}`,
-        pour: action.uid,
-        systeme: true,
-      });
+      await ajouterMessageVoyance(gameId, action.uid, action.ciblePseudo, roleVu);
     }
 
     // ─── VOYANTE BAVARDE ───
     else if (role === 'voyante-bavarde') {
       const roleVu = roles[action.cible];
-      await ajouterMessage(gameId, {
-        text: `🔮 Tu vois que ${action.ciblePseudo} est : ${getRoleName(roleVu)}`,
-        pour: action.uid,
-        systeme: true,
-      });
-      // Stocke pour révélation à l'aube
+      await ajouterMessageVoyance(gameId, action.uid, action.ciblePseudo, roleVu);
+
       const { doc, updateDoc } = await getFirestoreFns();
       await updateDoc(doc(window.firebaseDB, 'games', gameId), {
         voyanteBavardeVision: {
@@ -118,10 +122,6 @@ async function resoudreCrepuscule(gameId, data, actions, tour) {
 
 async function resoudreMinuit(gameId, data, actions, tour) {
   const roles = data.rolesJoueurs || {};
-  const pseudos = {};
-  data.players.forEach((uid, i) => {
-    pseudos[uid] = data.playersPseudo[i];
-  });
 
   // ─── Vote des loups ───
   const votesLoups = {};
@@ -215,19 +215,21 @@ async function resoudreAube(gameId, data, actions, tour) {
 
   if (mortsNuit.length > 0) {
     const { doc, updateDoc, arrayRemove, arrayUnion } = await getFirestoreFns();
-    const updates = {};
 
     for (const mort of mortsNuit) {
       const pseudo = pseudos[mort.uid];
       if (pseudo) mortsAppliquees.push(pseudo);
 
-      updates.joueursVivants = arrayRemove(mort.uid);
-      updates.joueursMorts = arrayUnion(mort.uid);
+      await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+        joueursVivants: arrayRemove(mort.uid),
+        joueursMorts: arrayUnion(mort.uid),
+      });
     }
 
-    updates.mortsNuit = [];
-
-    await updateDoc(doc(window.firebaseDB, 'games', gameId), updates);
+    // Reset les morts de la nuit
+    await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+      mortsNuit: [],
+    });
   }
 
   // ─── Annonce publique ───
@@ -285,7 +287,6 @@ export async function resoudrePhaseTerminee(gameId, phaseTerminee, tour) {
       case 'aube':
         await resoudreAube(gameId, data, actions, tour);
         break;
-      // Autres phases : rien pour l'instant
     }
   } catch (err) {
     console.warn('⚠️ Erreur résolution:', err);

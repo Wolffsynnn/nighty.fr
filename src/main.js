@@ -108,6 +108,36 @@ function showRoleReveal(roleId) {
   roleRevealOverlay.classList.remove('hidden');
 }
 
+// ═══════════════════════════════════════════════════════════
+// 🔮 RÉSULTAT VOYANCE (carte visuelle)
+// ═══════════════════════════════════════════════════════════
+
+const voyanceOverlay = document.getElementById('voyance-overlay');
+const voyancePseudoEl = document.getElementById('voyance-pseudo');
+const voyanceIconEl   = document.getElementById('voyance-icon');
+const voyanceRoleEl   = document.getElementById('voyance-role');
+const voyanceClose    = document.getElementById('voyance-close');
+
+function showVoyanceCard(ciblePseudo, roleId) {
+  if (!voyanceOverlay) return;
+
+  const role = getRoleById(roleId);
+  if (!role) {
+    console.warn('⚠️ Rôle introuvable :', roleId);
+    return;
+  }
+
+  voyancePseudoEl.textContent = ciblePseudo;
+  voyanceIconEl.className = 'voyance-icon role-icon-' + role.id;
+  voyanceRoleEl.textContent = role.nom;
+
+  voyanceOverlay.classList.remove('hidden');
+}
+
+safeOn(voyanceClose, 'click', () => {
+  if (voyanceOverlay) voyanceOverlay.classList.add('hidden');
+});
+
 safeOn(roleRevealClose, 'click', () => {
   roleRevealOverlay.classList.add('hidden');
 });
@@ -1470,7 +1500,6 @@ async function envoyerAction(cibleUid, ciblePseudo) {
       at: Date.now(),
     });
 
-    showMessage(`✅ Cible : ${ciblePseudo}`);
     desactiverSelectionCible();
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -2116,19 +2145,13 @@ function renderChat(messages) {
     return true;
   });
 
-  glChatMessages.innerHTML = messagesFiltres.map(m => {
-    const classes = m.systeme ? 'gl-chat-msg gl-chat-msg-systeme' : 'gl-chat-msg';
-    const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
-    return `
-      <div class="${classes}">
-        ${auteur}${m.text}
-      </div>
-    `;
-  }).join('');
-
-  if (wasAtBottom) {
-    glChatMessages.scrollTop = glChatMessages.scrollHeight;
-  }
+  // ✅ Si un message "voyance" m'est destiné → affiche la carte
+  messagesFiltres.forEach(m => {
+    if (m.voyance && m.pour === user.uid && !m._voyanceAffichee) {
+      m._voyanceAffichee = true;
+      showVoyanceCard(m.ciblePseudo, m.roleId);
+    }
+  });
 }
 
 async function sendChatMessage() {

@@ -3269,3 +3269,101 @@ body.is-mobile:not(.chat-open) .back-btn {
     font-style: italic;
     color: #ffe0a0 !important;
   }
+  /* ═══════════════════════════════════════════════════════════
+   🔮 RÉSULTAT VOYANCE
+   ═══════════════════════════════════════════════════════════ */
+.voyance-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    circle at center,
+    rgba(60, 40, 100, 0.9) 0%,
+    rgba(0, 0, 0, 0.98) 100%
+  );
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.4s ease-out;
+}
+
+.voyance-overlay.hidden { display: none; }
+
+.voyance-card {
+  width: min(90%, 400px);
+  padding: 32px 24px;
+  background: rgba(20, 15, 40, 0.97);
+  border: 2px solid rgba(168, 85, 247, 0.7);
+  border-radius: 24px;
+  box-shadow:
+    0 0 60px rgba(0, 0, 0, 0.9),
+    0 0 80px rgba(168, 85, 247, 0.5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: roleRevealPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.voyance-label {
+  font-family: 'Georgia', serif;
+  font-size: 0.85rem;
+  color: #b8b8d0;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.voyance-pseudo {
+  font-family: 'Georgia', serif;
+  font-size: 1.6rem;
+  color: #fff;
+  margin: 0;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+.voyance-icon {
+  width: 120px;
+  height: 120px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 50%;
+  background-color: rgba(120, 80, 200, 0.2);
+  border: 3px solid rgba(168, 85, 247, 0.7);
+  box-shadow: 0 0 40px rgba(168, 85, 247, 0.7);
+  margin: 10px 0;
+  animation: roleIconGlow 2.5s ease-in-out infinite;
+}
+
+.voyance-role {
+  font-family: 'Georgia', serif;
+  font-size: 1.8rem;
+  color: #c8b3ff;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+  letter-spacing: 0.05em;
+}
+
+.voyance-close {
+  margin-top: 12px;
+  padding: 12px 36px;
+  font-family: 'Georgia', serif;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  color: #0a0a1a;
+  background: #a855f7;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.25s ease;
+}
+
+.voyance-close:hover {
+  background: #c8b3ff;
+  box-shadow: 0 0 30px rgba(168, 85, 247, 1);
+  transform: translateY(-2px);
+}

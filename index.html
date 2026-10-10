@@ -39,6 +39,25 @@
       console.log('✅ Firebase initialisé');
     });
   </script>
+
+  <!-- ===== FIX MOBILE : personnage lobby invisible ===== -->
+  <style>
+    /* Force l'affichage du perso dans le lobby principal, surtout sur mobile */
+    #lobby-screen .lobby-character {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      z-index: 5;
+      pointer-events: none;
+    }
+    #lobby-screen .lobby-character img {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
 </head>
 <body>
 
@@ -136,7 +155,12 @@
     <canvas id="shader-canvas-lobby"></canvas>
 
     <div class="lobby-character">
-      <img src="https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png" alt="Personnage" />
+      <img
+        src="https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png"
+        alt="Personnage"
+        referrerpolicy="no-referrer"
+        crossorigin="anonymous"
+      />
     </div>
   </div>
 
@@ -182,7 +206,7 @@
       </div>
 
       <div class="games-character">
-        <img src="https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png" alt="Personnage" />
+        <img src="https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png" alt="Personnage" referrerpolicy="no-referrer" />
       </div>
     </div>
   </div>

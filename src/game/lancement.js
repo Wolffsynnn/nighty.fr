@@ -193,6 +193,87 @@ export async function ecouterLancement(gameId, callbacks = {}) {
   };
 }
 
+export async function ecouterLancement(gameId, callbacks = {}) {
+    const { doc, onSnapshot } = await getFirestoreFns();
+  
+    let timerInterval = null;
+    let dernierLancementAt = null;
+    let dejaLance = false;
+  
+    function stopperTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+  
+    const unsubscribe = onSnapshot(
+      doc(window.firebaseDB, 'games', gameId),
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+  
+        // ─── Partie lancée → on stoppe TOUT ───
+        if (data.enCours === true) {
+          stopperTimer();
+          dernierLancementAt = null;
+  
+          if (!dejaLance && typeof callbacks.onLance === 'function') {
+            dejaLance = true;
+            callbacks.onLance(data);
+          }
+          return;
+        }
+  
+        // Reset du flag si la partie repasse en attente (edge case)
+        if (dejaLance) dejaLance = false;
+  
+        // ─── Lancement annulé ───
+        if (!data.lancementAt && dernierLancementAt) {
+          stopperTimer();
+          dernierLancementAt = null;
+          if (typeof callbacks.onAnnule === 'function') {
+            callbacks.onAnnule();
+          }
+          return;
+        }
+  
+        // ─── Nouveau compte à rebours ───
+        if (data.lancementAt && data.lancementAt !== dernierLancementAt) {
+          dernierLancementAt = data.lancementAt;
+          stopperTimer();
+  
+          timerInterval = setInterval(() => {
+            // ✅ Sécurité : si le timer a été reset entre-temps, on stop
+            if (!dernierLancementAt) {
+              stopperTimer();
+              return;
+            }
+  
+            const restant = dernierLancementAt - Date.now();
+  
+            // ✅ FIX : on ne s'arrête plus à 0 → on lance direct sans afficher "0"
+            if (restant <= 0) {
+              stopperTimer();
+              dernierLancementAt = null;   // ← Important : empêche le timer de re-render
+              lancerPartieSiPossible(gameId);
+              return;
+            }
+  
+            if (typeof callbacks.onCountdown === 'function') {
+              callbacks.onCountdown(restant);
+            }
+          }, 100);
+        }
+      }
+    );
+  
+    return () => {
+      stopperTimer();
+      unsubscribe();
+    };
+  }
+
 // ═══════════════════════════════════════════════════════════
 // 🚀 LANCEMENT EFFECTIF (anti-doublon)
 // ═══════════════════════════════════════════════════════════

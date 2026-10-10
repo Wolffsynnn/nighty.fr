@@ -3374,19 +3374,16 @@ body.is-mobile:not(.chat-open) .back-btn {
     position: absolute;
     top: 24px;
     left: 24px;
-    z-index: 5;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.4rem;
+    z-index: 6;
+    padding: 10px 18px;
+    font-family: 'Georgia', serif;
+    font-size: 0.9rem;
     color: #ffb347;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(10, 10, 26, 0.85);
     border: 2px solid rgba(255, 179, 71, 0.5);
-    border-radius: 50%;
+    border-radius: 10px;
     cursor: pointer;
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(10px);
     transition: all 0.25s ease;
   }
   
@@ -3394,10 +3391,9 @@ body.is-mobile:not(.chat-open) .back-btn {
     background: #ffb347;
     color: #0a0a1a;
     box-shadow: 0 0 20px rgba(255, 150, 50, 0.7);
-    transform: scale(1.08);
   }
   
-  .btn-voir-compo.hidden { display: none; }
+  .btn-voir-compo.hidden { display: none !important; }
   
   /* Liste des rôles */
   .compo-view-item {
@@ -3454,3 +3450,6 @@ body.is-mobile:not(.chat-open) .back-btn {
     border-radius: 999px;
     border: 2px solid rgba(124, 58, 237, 0.9);
   }
+  
+  /* Sur mobile : on cache le bouton compo (il est déjà dans le chat) */
+  body.is-mobile .btn-voir-compo { display: none !important; }

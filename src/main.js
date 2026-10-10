@@ -406,22 +406,59 @@ initFirebase().catch(err => {
 });
 
 // ===== MODE NORMAL → LOBBY =====
-const normalModeCard = document.querySelector('.mode-card[data-mode="normal"] .mode-play');
-if (normalModeCard) {
-  normalModeCard.addEventListener('click', () => {
-    goToScreen(lobbyScreen);
-    const canvas = document.getElementById('shader-canvas-lobby');
-    if (canvas) initShaderCanvas(canvas);
+// ✅ CORRIGÉ : sélection plus robuste (par data-mode, insensible au HTML exact)
+function attacherBoutonModeNormal() {
+  const modeCards = document.querySelectorAll('.mode-card');
+  let trouve = false;
+
+  modeCards.forEach(card => {
+    const dataMode = (card.dataset.mode || '').toLowerCase();
+    const titre = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+
+    const estNormal = dataMode === 'normal' || titre.includes('normal');
+
+    if (estNormal) {
+      const btn = card.querySelector('.mode-play') || card.querySelector('button');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          goToScreen(lobbyScreen);
+          const canvas = document.getElementById('shader-canvas-lobby');
+          if (canvas) initShaderCanvas(canvas);
+        });
+        trouve = true;
+      }
+    }
+  });
+
+  if (!trouve) {
+    console.warn('⚠️ Bouton Mode Normal non trouvé');
+  }
+}
+
+attacherBoutonModeNormal();
+
+// ===== MODE BOSS → popup =====
+function attacherBoutonModeBoss() {
+  const modeCards = document.querySelectorAll('.mode-card');
+
+  modeCards.forEach(card => {
+    const dataMode = (card.dataset.mode || '').toLowerCase();
+    const titre = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+
+    const estBoss = dataMode === 'boss' || titre.includes('boss');
+
+    if (estBoss) {
+      const btn = card.querySelector('.mode-play') || card.querySelector('button');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          if (popup) popup.classList.remove('hidden');
+        });
+      }
+    }
   });
 }
 
-// ===== MODE BOSS → popup =====
-const bossModeCard = document.querySelector('.mode-card[data-mode="boss"] .mode-play');
-if (bossModeCard) {
-  bossModeCard.addEventListener('click', () => {
-    if (popup) popup.classList.remove('hidden');
-  });
-}
+attacherBoutonModeBoss();
 
 // ===== PARTIES : Retour =====
 safeOn(btnBackGames, 'click', () => {
@@ -1519,7 +1556,6 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
 
   const CHARACTER_IMG = 'https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png';
 
-  // ✅ CORRECTION : utilise la classe sur <body> posée au tout début du fichier
   const isMobile = document.body.classList.contains('is-mobile');
   const positionsBase = isMobile ? POSITIONS_16_MOBILE : POSITIONS_16_PC;
 

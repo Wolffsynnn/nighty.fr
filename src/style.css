@@ -37,7 +37,7 @@ body {
 .bg-layer {
   position: absolute;
   inset: 0;
-  background-image: url('https://i.imgur.com/5W3qGTM.png');
+  background-image: url('https://i.postimg.cc/05YRxSk3/a4ad4234-798b-4de4-b889-2c2ff4f83a23.png') !important;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -347,7 +347,6 @@ body {
   cursor: pointer;
   font-weight: bold;
   transition: all 0.25s ease;
-  /* Assure que le bouton est cliquable sur mobile */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -2566,12 +2565,11 @@ body.is-mobile .screen.hidden canvas {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   📱 LOBBY DE PARTIE — MOBILE
+   📱 LOBBY DE PARTIE — MOBILE (fond NUIT)
    ═══════════════════════════════════════════════════════════ */
 
-/* Image de fond mobile */
 body.is-mobile #game-lobby-screen .bg-layer {
-  background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
+  background-image: url('https://i.postimg.cc/L8sGSZ78/f91fb2ea-57f9-49ce-aa9e-7ce7bd90de20.png') !important;
   background-size: cover;
   background-position: center top;
 }
@@ -2585,7 +2583,6 @@ body.is-mobile .game-lobby-players {
   overflow: visible;
 }
 
-/* Les slots prennent toute la largeur */
 body.is-mobile .gl-players-slots {
   position: absolute;
   inset: 0;
@@ -2594,7 +2591,6 @@ body.is-mobile .gl-players-slots {
   pointer-events: auto;
 }
 
-/* Slots plus petits sur mobile */
 body.is-mobile .gl-slot {
   width: 60px;
   height: 90px;
@@ -2620,19 +2616,18 @@ body.is-mobile .gl-slot::after {
   height: 10px;
   bottom: -4px;
 }
+
 /* ═══════════════════════════════════════════════════════════
    📱 MOBILE : Bulle chat + Chat plein écran
    ═══════════════════════════════════════════════════════════ */
 
-/* Par défaut (PC), cachés */
 .mobile-chat-bubble,
 .mobile-chat-overlay { display: none; }
 
-/* --- MOBILE --- */
 body.is-mobile .mobile-chat-bubble {
   display: flex;
   position: absolute;
-  bottom: 100px;    /* au-dessus des boutons du bas */
+  bottom: 100px;
   right: 16px;
   z-index: 30;
   width: 56px;
@@ -2656,7 +2651,6 @@ body.is-mobile .mobile-chat-bubble:active {
 
 body.is-mobile .mobile-chat-bubble.hidden { display: none; }
 
-/* Overlay plein écran */
 body.is-mobile .mobile-chat-overlay {
   display: flex;
   flex-direction: column;
@@ -2675,7 +2669,6 @@ body.is-mobile .mobile-chat-overlay.hidden { display: none; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Topbar du chat mobile */
 body.is-mobile .mobile-chat-topbar {
   display: flex;
   align-items: center;
@@ -2741,7 +2734,6 @@ body.is-mobile #mobile-chat-comp {
   font-size: 0.72rem !important;
 }
 
-/* Messages */
 body.is-mobile .mobile-chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -2766,7 +2758,6 @@ body.is-mobile .mobile-chat-messages .gl-chat-author {
   margin-right: 4px;
 }
 
-/* Input en bas */
 body.is-mobile .mobile-chat-input-wrapper {
   display: flex;
   gap: 8px;
@@ -2810,11 +2801,6 @@ body.is-mobile #mobile-chat-send:active {
   transform: scale(0.95);
 }
 
-/* Quand le chat mobile est ouvert :
-   - cache le chat desktop
-   - cache la topbar desktop
-   - cache les boutons du bas
-   - cache la bulle */
 body.is-mobile.chat-open .game-lobby-chat,
 body.is-mobile.chat-open .game-lobby-topbar,
 body.is-mobile.chat-open .game-lobby-bottombar,
@@ -2822,96 +2808,92 @@ body.is-mobile.chat-open .mobile-chat-bubble {
   display: none !important;
 }
 
-/* Quand le chat est ouvert : cache aussi la bulle (au cas où) */
 body.is-mobile.chat-open .mobile-chat-bubble.hidden { display: none; }
+
 /* ═══════════════════════════════════════════════════════════
    📱 MOBILE : Cache le chat desktop + topbar + lien
    ═══════════════════════════════════════════════════════════ */
 
-/* Chat desktop caché sur mobile (on utilise la bulle) */
 body.is-mobile .game-lobby-chat {
   display: none !important;
 }
 
-/* Topbar cachée sur mobile quand le chat est fermé */
 body.is-mobile:not(.chat-open) .game-lobby-topbar {
   display: none !important;
 }
 
-/* Bandeau Lien caché sur mobile quand le chat est fermé */
 body.is-mobile:not(.chat-open) .gl-share-bar {
   display: none !important;
 }
 
-/* Bouton "back" en haut à gauche : le garder quand même (pour quitter) */
 body.is-mobile:not(.chat-open) .back-btn {
   display: flex !important;
 }
+
 /* ═══════════════════════════════════════════════════════════
    🚀 COMPTE À REBOURS DE LANCEMENT
    ═══════════════════════════════════════════════════════════ */
-   .countdown-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-    background: radial-gradient(
-      circle at center,
-      rgba(0, 0, 0, 0.6) 0%,
-      rgba(0, 0, 0, 0.85) 100%
-    );
-    animation: countdownFadeIn 0.3s ease-out;
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+  animation: countdownFadeIn 0.3s ease-out;
+}
+
+.countdown-overlay.hidden {
+  display: none;
+}
+
+.countdown-number {
+  font-family: 'Georgia', serif;
+  font-size: 25vw;
+  font-weight: bold;
+  color: #ffb347;
+  text-shadow:
+    0 0 40px rgba(255, 150, 50, 0.9),
+    0 0 80px rgba(255, 150, 50, 0.6),
+    0 0 120px rgba(255, 150, 50, 0.4);
+  animation: countdownPulse 1s ease-in-out infinite;
+  user-select: none;
+  pointer-events: none;
+}
+
+@keyframes countdownFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes countdownPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
   }
-  
-  .countdown-overlay.hidden {
-    display: none;
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
   }
-  
-  .countdown-number {
-    font-family: 'Georgia', serif;
-    font-size: 25vw;
-    font-weight: bold;
-    color: #ffb347;
-    text-shadow:
-      0 0 40px rgba(255, 150, 50, 0.9),
-      0 0 80px rgba(255, 150, 50, 0.6),
-      0 0 120px rgba(255, 150, 50, 0.4);
-    animation: countdownPulse 1s ease-in-out infinite;
-    user-select: none;
-    pointer-events: none;
-  }
-  
-  @keyframes countdownFadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  
-  @keyframes countdownPulse {
-    0%, 100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.15);
-      opacity: 0.85;
-    }
-  }
-  
-  /* Couleurs qui changent quand ça approche de la fin */
-  .countdown-number.warn {
-    color: #ffa500;
-    text-shadow:
-      0 0 50px rgba(255, 165, 0, 1),
-      0 0 100px rgba(255, 165, 0, 0.7);
-  }
-  
-  .countdown-number.danger {
-    color: #ff4444;
-    text-shadow:
-      0 0 60px rgba(255, 68, 68, 1),
-      0 0 120px rgba(255, 68, 68, 0.8);
-    animation: countdownPulse 0.5s ease-in-out infinite;
-  }
+}
+
+.countdown-number.warn {
+  color: #ffa500;
+  text-shadow:
+    0 0 50px rgba(255, 165, 0, 1),
+    0 0 100px rgba(255, 165, 0, 0.7);
+}
+
+.countdown-number.danger {
+  color: #ff4444;
+  text-shadow:
+    0 0 60px rgba(255, 68, 68, 1),
+    0 0 120px rgba(255, 68, 68, 0.8);
+  animation: countdownPulse 0.5s ease-in-out infinite;
+}

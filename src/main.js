@@ -1208,19 +1208,43 @@ function ecouterLeLancement(gameId) {
     lancementUnsubscribe = null;
   }
 
+  // Récupère les éléments du compte à rebours
+  const overlay = document.getElementById('countdown-overlay');
+  const numberEl = document.getElementById('countdown-number');
+
+  function cacherCountdown() {
+    if (overlay) overlay.classList.add('hidden');
+  }
+
+  function afficherCountdown(sec) {
+    if (!overlay || !numberEl) return;
+    overlay.classList.remove('hidden');
+    numberEl.textContent = sec;
+
+    // Change la couleur selon le temps restant
+    numberEl.classList.remove('warn', 'danger');
+    if (sec <= 3) {
+      numberEl.classList.add('danger');
+    } else if (sec <= 5) {
+      numberEl.classList.add('warn');
+    }
+  }
+
   ecouterLancement(gameId, {
     onCountdown: (restant) => {
       const sec = Math.ceil(restant / 1000);
       console.log(`🚀 Lancement dans ${sec} sec`);
-      // TODO : afficher ça dans l'UI (un gros "8", "7", "6"...)
+      afficherCountdown(sec);
     },
     onAnnule: () => {
       console.log('❌ Lancement annulé');
-      // TODO : cacher le compte à rebours
+      cacherCountdown();
     },
     onLance: () => {
       console.log('🎮 PARTIE LANCÉE !');
+      cacherCountdown();
       // TODO : passer à l'écran de jeu (partie en cours)
+      // → À FAIRE PLUS TARD
     },
   }).then(unsub => {
     lancementUnsubscribe = unsub;
@@ -1506,7 +1530,6 @@ function renderGameLobby(data) {
 
   renderChat(data.messages || []);
 
-  if (typeof majBoutonLancer === 'function') majBoutonLancer();
   if (typeof majBoutonsMaxPlayers === 'function') majBoutonsMaxPlayers();
 }
 
@@ -2255,8 +2278,6 @@ async function lancerPartie() {
     showMessage('❌ ' + (err.code || err.message));
   }
 }
-
-safeOn(btnStartGame, 'click', lancerPartie);
 
 // ═══════════════════════════════════════════════════════════
 // 🎯 RÔLES SECONDAIRES - Boutons radio

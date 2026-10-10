@@ -2847,3 +2847,71 @@ body.is-mobile:not(.chat-open) .gl-share-bar {
 body.is-mobile:not(.chat-open) .back-btn {
   display: flex !important;
 }
+/* ═══════════════════════════════════════════════════════════
+   🚀 COMPTE À REBOURS DE LANCEMENT
+   ═══════════════════════════════════════════════════════════ */
+   .countdown-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at center,
+      rgba(0, 0, 0, 0.6) 0%,
+      rgba(0, 0, 0, 0.85) 100%
+    );
+    animation: countdownFadeIn 0.3s ease-out;
+  }
+  
+  .countdown-overlay.hidden {
+    display: none;
+  }
+  
+  .countdown-number {
+    font-family: 'Georgia', serif;
+    font-size: 25vw;
+    font-weight: bold;
+    color: #ffb347;
+    text-shadow:
+      0 0 40px rgba(255, 150, 50, 0.9),
+      0 0 80px rgba(255, 150, 50, 0.6),
+      0 0 120px rgba(255, 150, 50, 0.4);
+    animation: countdownPulse 1s ease-in-out infinite;
+    user-select: none;
+    pointer-events: none;
+  }
+  
+  @keyframes countdownFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  @keyframes countdownPulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 0.85;
+    }
+  }
+  
+  /* Couleurs qui changent quand ça approche de la fin */
+  .countdown-number.warn {
+    color: #ffa500;
+    text-shadow:
+      0 0 50px rgba(255, 165, 0, 1),
+      0 0 100px rgba(255, 165, 0, 0.7);
+  }
+  
+  .countdown-number.danger {
+    color: #ff4444;
+    text-shadow:
+      0 0 60px rgba(255, 68, 68, 1),
+      0 0 120px rgba(255, 68, 68, 0.8);
+    animation: countdownPulse 0.5s ease-in-out infinite;
+  }

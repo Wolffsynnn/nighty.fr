@@ -595,5 +595,22 @@
         <button id="voyance-close" class="voyance-close">✨ Compris</button>
       </div>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+     👁️ VOIR LA COMPOSITION (pendant la partie)
+     ═══════════════════════════════════════════════════════════ -->
+<button id="btn-voir-compo" class="btn-voir-compo hidden">👁️</button>
+
+<div id="compo-view-popup" class="popup-overlay hidden">
+  <div class="composition-box">
+    <div class="composition-header">
+      <span class="comp-badge">📜 Composition</span>
+      <span class="comp-count">Rôles en jeu</span>
+      <button id="compo-view-close" class="comp-close" title="Fermer">✖</button>
+    </div>
+
+    <div id="compo-view-list" class="composition-scroll" style="padding: 20px;"></div>
+  </div>
+</div>
 </body>
 </html>

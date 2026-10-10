@@ -1904,6 +1904,27 @@ function onPartieLancee(data) {
     roleRevealDejaVu = true;
     showRoleReveal(monRole);
   }
+  function onPartieLancee(data) {
+    const user = window.firebaseAuth?.currentUser;
+    if (!user) return;
+  
+    const monRole = data.rolesJoueurs?.[user.uid] || null;
+  
+    console.log('🎮 Partie lancée !');
+    console.log('🎭 Mon rôle :', monRole);
+  
+    document.body.classList.add('game-started');
+  
+    afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
+  
+    if (monRole && !roleRevealDejaVu) {
+      roleRevealDejaVu = true;
+      showRoleReveal(monRole);
+    }
+  
+    // ✅ Affiche le bouton "voir composition"
+    if (btnVoirCompo) btnVoirCompo.classList.remove('hidden');
+  }
 }
 
 function renderShareBar(data) {
@@ -2413,6 +2434,13 @@ async function leaveGame() {
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
   }
+  roleRevealDejaVu = false;
+  document.body.classList.remove('game-started');
+  document.body.classList.remove('phase-jour', 'phase-nuit');
+
+  // ✅ Cache le bouton voir composition
+  if (btnVoirCompo) btnVoirCompo.classList.add('hidden');
+  if (compoViewPopup) compoViewPopup.classList.add('hidden');
 }
 
 safeOn(btnLeaveGame, 'click', leaveGame);
@@ -2897,3 +2925,62 @@ renderGameLobby = function(data) {
     renderMobileChat();
   }
 };
+
+// ═══════════════════════════════════════════════════════════
+// 👁️ VOIR LA COMPOSITION
+// ═══════════════════════════════════════════════════════════
+
+const btnVoirCompo   = document.getElementById('btn-voir-compo');
+const compoViewPopup = document.getElementById('compo-view-popup');
+const compoViewClose = document.getElementById('compo-view-close');
+const compoViewList  = document.getElementById('compo-view-list');
+
+function afficherCompoActuelle() {
+  if (!compoViewList || !currentGameData) return;
+
+  const composition = currentGameData.composition || [];
+
+  if (composition.length === 0) {
+    compoViewList.innerHTML = '<p class="friends-empty">Aucune composition.</p>';
+    return;
+  }
+
+  // Compte les occurrences
+  const counts = {};
+  composition.forEach(id => {
+    counts[id] = (counts[id] || 0) + 1;
+  });
+
+  const campLabels = {
+    'village':    '🏡 Village',
+    'loups':      '🐺 Loups',
+    'neutre':     '⚖️ Neutre',
+    'nightmares': '🌑 Nightmares',
+  };
+
+  let html = '';
+  for (const [id, count] of Object.entries(counts)) {
+    const role = getRoleById(id);
+    if (!role) continue;
+
+    html += `
+      <div class="compo-view-item">
+        <div class="compo-view-icon role-icon-${role.id}"></div>
+        <div class="compo-view-info">
+          <span class="compo-view-nom">${role.nom}</span>
+          <span class="compo-view-camp">${campLabels[role.camp] || role.camp}</span>
+        </div>
+        ${count > 1 ? `<span class="compo-view-quantite">×${count}</span>` : ''}
+      </div>
+    `;
+  }
+
+  compoViewList.innerHTML = html;
+
+  if (compoViewPopup) compoViewPopup.classList.remove('hidden');
+}
+
+safeOn(btnVoirCompo, 'click', afficherCompoActuelle);
+safeOn(compoViewClose, 'click', () => {
+  if (compoViewPopup) compoViewPopup.classList.add('hidden');
+});

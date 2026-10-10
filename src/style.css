@@ -3367,3 +3367,90 @@ body.is-mobile:not(.chat-open) .back-btn {
   box-shadow: 0 0 30px rgba(168, 85, 247, 1);
   transform: translateY(-2px);
 }
+/* ═══════════════════════════════════════════════════════════
+   👁️ BOUTON VOIR COMPOSITION
+   ═══════════════════════════════════════════════════════════ */
+   .btn-voir-compo {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    z-index: 5;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4rem;
+    color: #ffb347;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 179, 71, 0.5);
+    border-radius: 50%;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: all 0.25s ease;
+  }
+  
+  .btn-voir-compo:hover {
+    background: #ffb347;
+    color: #0a0a1a;
+    box-shadow: 0 0 20px rgba(255, 150, 50, 0.7);
+    transform: scale(1.08);
+  }
+  
+  .btn-voir-compo.hidden { display: none; }
+  
+  /* Liste des rôles */
+  .compo-view-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 179, 71, 0.25);
+    border-radius: 10px;
+  }
+  
+  .compo-view-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-size: 80% 80%;
+    background-position: center;
+    background-repeat: no-repeat;
+    border: 2px solid rgba(120, 80, 200, 0.5);
+    flex-shrink: 0;
+  }
+  
+  .compo-view-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  
+  .compo-view-nom {
+    font-family: 'Georgia', serif;
+    font-size: 1rem;
+    color: #ffb347;
+    font-weight: bold;
+  }
+  
+  .compo-view-camp {
+    font-size: 0.75rem;
+    color: #b8b8d0;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  
+  .compo-view-quantite {
+    font-family: 'Georgia', serif;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(124, 58, 237, 0.6);
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 2px solid rgba(124, 58, 237, 0.9);
+  }

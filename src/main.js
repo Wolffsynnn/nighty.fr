@@ -72,6 +72,41 @@ const btnRefreshGames = document.getElementById('btn-refresh-games');
 const gamesList       = document.getElementById('games-list');
 const gamesTabs       = document.querySelectorAll('.games-tab');
 let currentGamesTab   = 'public';
+// ===== RÉVÉLATION DU RÔLE =====
+const roleRevealOverlay = document.getElementById('role-reveal-overlay');
+const roleRevealIcon    = document.getElementById('role-reveal-icon');
+const roleRevealName    = document.getElementById('role-reveal-name');
+const roleRevealCamp    = document.getElementById('role-reveal-camp');
+const roleRevealDesc    = document.getElementById('role-reveal-desc');
+const roleRevealClose   = document.getElementById('role-reveal-close');
+
+function showRoleReveal(roleId) {
+  if (!roleRevealOverlay) return;
+
+  const role = getRoleById(roleId);
+  if (!role) {
+    console.warn('⚠️ Rôle introuvable :', roleId);
+    return;
+  }
+
+  roleRevealIcon.className = 'role-reveal-icon role-icon-' + role.id;
+  roleRevealName.textContent = role.nom;
+  roleRevealDesc.textContent = role.description || '';
+
+  const campLabels = {
+    'village':    '🏡 Village',
+    'loups':      '🐺 Loups',
+    'neutre':     '⚖️ Neutre',
+    'nightmares': '🌑 Nightmares',
+  };
+  roleRevealCamp.textContent = campLabels[role.camp] || role.camp;
+
+  roleRevealOverlay.classList.remove('hidden');
+}
+
+safeOn(roleRevealClose, 'click', () => {
+  roleRevealOverlay.classList.add('hidden');
+});
 
 // ═══════════════════════════════════════════════════════════
 // 📚 RÔLES
@@ -1552,9 +1587,13 @@ function onPartieLancee(data) {
   console.log('🎮 Partie lancée !');
   console.log('🎭 Mon rôle :', monRole);
 
-  // TODO : afficher l'écran de jeu
-  // Pour l'instant, on affiche juste un message
-  showMessage(`🎭 Ton rôle : ${monRole || 'inconnu'}`);
+  // ✅ Cache les éléments du lobby
+  document.body.classList.add('game-started');
+
+  // ✅ Affiche la révélation du rôle
+  if (monRole) {
+    showRoleReveal(monRole);
+  }
 }
 
 function renderShareBar(data) {
@@ -2002,11 +2041,13 @@ async function leaveGame() {
       lancementUnsubscribe = null;
     }
 
-    updatePresence('online', null);
-    currentGameId = null;
-    currentGameData = null;
-    goToScreen(publicGamesScreen);
+       // ✅ Enlève la classe "partie lancée"
+       document.body.classList.remove('game-started');
 
+       updatePresence('online', null);
+       currentGameId = null;
+       currentGameData = null;
+       goToScreen(publicGamesScreen);
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
   }

@@ -2897,3 +2897,141 @@ body.is-mobile:not(.chat-open) .back-btn {
     0 0 120px rgba(255, 68, 68, 0.8);
   animation: countdownPulse 0.5s ease-in-out infinite;
 }
+/* ═══════════════════════════════════════════════════════════
+   🎭 RÉVÉLATION DU RÔLE
+   ═══════════════════════════════════════════════════════════ */
+   .role-reveal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(
+      circle at center,
+      rgba(0, 0, 0, 0.85) 0%,
+      rgba(0, 0, 0, 0.98) 100%
+    );
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.4s ease-out;
+  }
+  
+  .role-reveal-overlay.hidden { display: none; }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  
+  .role-reveal-card {
+    width: min(90%, 420px);
+    padding: 36px 28px;
+    background: rgba(15, 15, 30, 0.97);
+    border: 2px solid rgba(255, 179, 71, 0.6);
+    border-radius: 24px;
+    box-shadow:
+      0 0 60px rgba(0, 0, 0, 0.9),
+      0 0 80px rgba(255, 150, 50, 0.4);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    animation: roleRevealPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  @keyframes roleRevealPop {
+    0%   { opacity: 0; transform: scale(0.4) rotate(-5deg); }
+    60%  { opacity: 1; transform: scale(1.06) rotate(2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  
+  .role-reveal-title {
+    font-family: 'Georgia', serif;
+    font-size: 0.85rem;
+    color: #b8b8d0;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+  
+  .role-reveal-icon {
+    width: 130px;
+    height: 130px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 50%;
+    background-color: rgba(120, 80, 200, 0.2);
+    border: 3px solid rgba(255, 179, 71, 0.6);
+    box-shadow: 0 0 40px rgba(255, 150, 50, 0.6);
+    animation: roleIconGlow 2.5s ease-in-out infinite;
+  }
+  
+  @keyframes roleIconGlow {
+    0%, 100% { box-shadow: 0 0 40px rgba(255, 150, 50, 0.6); }
+    50%      { box-shadow: 0 0 70px rgba(255, 150, 50, 1); }
+  }
+  
+  .role-reveal-name {
+    font-family: 'Georgia', serif;
+    font-size: 2rem;
+    color: #ffb347;
+    text-shadow: 0 0 25px rgba(255, 150, 50, 0.8);
+    margin: 0;
+    letter-spacing: 0.05em;
+  }
+  
+  .role-reveal-camp {
+    font-size: 0.8rem;
+    color: #c8c8d8;
+    letter-spacing: 0.15em;
+    padding: 5px 14px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 179, 71, 0.3);
+    margin: 0;
+    text-transform: uppercase;
+  }
+  
+  .role-reveal-desc {
+    font-size: 0.95rem;
+    color: #d0d0e0;
+    font-style: italic;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 10px;
+  }
+  
+  .role-reveal-close {
+    margin-top: 8px;
+    padding: 14px 40px;
+    font-family: 'Georgia', serif;
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+    color: #0a0a1a;
+    background: #ffb347;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.25s ease;
+  }
+  
+  .role-reveal-close:hover {
+    background: #ffc670;
+    box-shadow: 0 0 30px rgba(255, 150, 50, 0.9);
+    transform: translateY(-2px);
+  }
+  /* ═══════════════════════════════════════════════════════════
+   🎮 PARTIE LANCÉE → on cache les éléments du lobby
+   ═══════════════════════════════════════════════════════════ */
+
+body.game-started .game-lobby-bottombar,
+body.game-started .game-lobby-topbar,
+body.game-started .gl-share-bar,
+body.game-started .back-btn,
+body.game-started .mobile-chat-bubble,
+body.game-started #btn-back-game-lobby {
+  display: none !important;
+}

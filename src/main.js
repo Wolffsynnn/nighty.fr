@@ -1544,13 +1544,16 @@ async function watchGame(gameId) {
     if (data.status === 'waiting') updatePresence('waiting', gameId);
     if (data.status === 'playing') updatePresence('playing', gameId);
 
-    // ✅ Si la partie est lancée → on passe à l'écran de jeu
-    if (data.enCours === true || data.status === 'playing') {
+     // ✅ Si la partie est lancée → on passe à l'écran de jeu
+     if (data.enCours === true || data.status === 'playing') {
       // ✅ Cache le countdown s'il est encore visible
       const overlay = document.getElementById('countdown-overlay');
       if (overlay) overlay.classList.add('hidden');
 
       onPartieLancee(data);
+
+      // ✅ Met à jour la phase en temps réel
+      afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
       return;
     }
 
@@ -1588,8 +1591,10 @@ function onPartieLancee(data) {
   console.log('🎮 Partie lancée !');
   console.log('🎭 Mon rôle :', monRole);
 
-  // ✅ Cache les éléments du lobby
   document.body.classList.add('game-started');
+
+  // ✅ Affiche la phase en cours
+  afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
 
   // ✅ N'affiche la carte qu'UNE SEULE FOIS
   if (monRole && !roleRevealDejaVu) {
@@ -2540,3 +2545,37 @@ renderGameLobby = function(data) {
     renderMobileChat();
   }
 };
+// ═══════════════════════════════════════════════════════════
+// 🎬 AFFICHAGE DE LA PHASE
+// ═══════════════════════════════════════════════════════════
+
+const NOMS_PHASES = {
+  'avant-crepuscule': 'Avant-Crépuscule',
+  'crepuscule':       'Crépuscule',
+  'minuit':           'Minuit',
+  'apres-minuit':     'Après-Minuit',
+  'aube':             'Aube',
+  'jour':             'Jour',
+  'vote':             'Vote du Village',
+  'soir':             'Soir',
+};
+
+function afficherPhase(phase, tour) {
+  const overlay = document.getElementById('phase-overlay');
+  const elNom = document.getElementById('phase-nom');
+  const elTour = document.getElementById('phase-tour');
+  if (!overlay || !elNom || !elTour) return;
+
+  overlay.classList.remove('hidden', 'nuit', 'jour');
+  overlay.dataset.phase = phase;
+
+  // Détermine si c'est une phase de NUIT ou de JOUR
+  const phasesNuit = ['avant-crepuscule', 'crepuscule', 'minuit', 'apres-minuit'];
+  const phasesJour = ['aube', 'jour', 'vote', 'soir'];
+
+  if (phasesNuit.includes(phase)) overlay.classList.add('nuit');
+  if (phasesJour.includes(phase)) overlay.classList.add('jour');
+
+  elNom.textContent = NOMS_PHASES[phase] || phase;
+  elTour.textContent = `Tour ${tour}`;
+}

@@ -1,3 +1,12 @@
+// ═══════════════════════════════════════════════════════════
+// 📚 IMPORTS (EN HAUT OBLIGATOIREMENT)
+// ═══════════════════════════════════════════════════════════
+import {
+  verifierEtProgrammerLancement,
+  annulerLancement,
+  ecouterLancement,
+} from './game/lancement.js';
+
 // ===== DÉTECTION APPAREIL (vrai mobile vs PC) =====
 const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
                || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
@@ -406,7 +415,6 @@ initFirebase().catch(err => {
 });
 
 // ===== MODE NORMAL → LOBBY =====
-// ✅ CORRIGÉ : sélection plus robuste (par data-mode, insensible au HTML exact)
 function attacherBoutonModeNormal() {
   const modeCards = document.querySelectorAll('.mode-card');
   let trouve = false;
@@ -1172,6 +1180,7 @@ let currentGameId = null;
 let currentGameData = null;
 let gameUnsubscribe = null;
 let currentPlayerSlots = {};
+let lancementUnsubscribe = null;   // ✅ AJOUTÉ
 
 // ─── Positions pour PC (ancien système en arc) ───
 const POSITIONS_16_PC = [
@@ -1183,13 +1192,40 @@ const POSITIONS_16_PC = [
 
 // ─── Positions pour MOBILE (2 rangées de 8, dans l'herbe) ───
 const POSITIONS_16_MOBILE = [
-  // Rangée 1 (y = 38%)
   { x: 8,  y: 38 }, { x: 20, y: 38 }, { x: 32, y: 38 }, { x: 44, y: 38 },
   { x: 56, y: 38 }, { x: 68, y: 38 }, { x: 80, y: 38 }, { x: 92, y: 38 },
-  // Rangée 2 (y = 58%)
   { x: 8,  y: 58 }, { x: 20, y: 58 }, { x: 32, y: 58 }, { x: 44, y: 58 },
   { x: 56, y: 58 }, { x: 68, y: 58 }, { x: 80, y: 58 }, { x: 92, y: 58 },
 ];
+
+// ═══════════════════════════════════════════════════════════
+// 🚀 ÉCOUTE DU LANCEMENT AUTOMATIQUE
+// ═══════════════════════════════════════════════════════════
+
+function ecouterLeLancement(gameId) {
+  if (lancementUnsubscribe) {
+    lancementUnsubscribe();
+    lancementUnsubscribe = null;
+  }
+
+  ecouterLancement(gameId, {
+    onCountdown: (restant) => {
+      const sec = Math.ceil(restant / 1000);
+      console.log(`🚀 Lancement dans ${sec} sec`);
+      // TODO : afficher ça dans l'UI (un gros "8", "7", "6"...)
+    },
+    onAnnule: () => {
+      console.log('❌ Lancement annulé');
+      // TODO : cacher le compte à rebours
+    },
+    onLance: () => {
+      console.log('🎮 PARTIE LANCÉE !');
+      // TODO : passer à l'écran de jeu (partie en cours)
+    },
+  }).then(unsub => {
+    lancementUnsubscribe = unsub;
+  });
+}
 
 safeOn(cgType, 'change', () => {
   if (!cgCodeWrapper) return;
@@ -1332,6 +1368,7 @@ safeOn(cgCreate, 'click', async () => {
     goToScreen(gameLobbyScreen);
 
     watchGame(currentGameId);
+    ecouterLeLancement(currentGameId);   // ✅ AJOUTÉ
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1383,6 +1420,7 @@ async function joinGame(gameId) {
       updatePresence('waiting', gameId);
       goToScreen(gameLobbyScreen);
       watchGame(gameId);
+      ecouterLeLancement(gameId);   // ✅ AJOUTÉ
       return;
     }
 
@@ -1407,11 +1445,14 @@ async function joinGame(gameId) {
       [`playerSlots.${user.uid}`]: freeSlot,
     });
 
+    await verifierEtProgrammerLancement(gameId);
+
     currentGameId = gameId;
     updatePresence('waiting', gameId);
     showMessage('✅ Tu as rejoint la partie !');
     goToScreen(gameLobbyScreen);
     watchGame(gameId);
+    ecouterLeLancement(gameId);   // ✅ AJOUTÉ
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1898,11 +1939,20 @@ async function leaveGame() {
         await updateDoc(doc(window.firebaseDB, 'games', currentGameId), updates);
         showMessage('🚪 Tu as quitté la partie');
       }
+
+      // ✅ Annule le lancement dans TOUS les cas
+      await annulerLancement(currentGameId);
     }
 
     if (gameUnsubscribe) {
       gameUnsubscribe();
       gameUnsubscribe = null;
+    }
+
+    // ✅ Coupe l'écoute du lancement
+    if (lancementUnsubscribe) {
+      lancementUnsubscribe();
+      lancementUnsubscribe = null;
     }
 
     updatePresence('online', null);
@@ -2315,6 +2365,7 @@ function majBoutonsMaxPlayers() {
     btnPlusPlayers.classList.add('hidden');
   }
 }
+
 // ═══════════════════════════════════════════════════════════
 // 💬 MOBILE : Bulle chat + Chat plein écran
 // ═══════════════════════════════════════════════════════════
@@ -2366,13 +2417,9 @@ function renderMobileChat() {
   }
 }
 
-// Bulle → ouvre le chat
 safeOn(mobileChatBubble, 'click', openMobileChat);
-
-// ✖ → ferme
 safeOn(mobileChatClose, 'click', closeMobileChat);
 
-// Envoi de message (réutilise la logique existante)
 async function sendMobileChatMessage() {
   const text = mobileChatInput?.value.trim();
   if (!text) return;
@@ -2407,11 +2454,9 @@ safeOn(mobileChatInput, 'keydown', (e) => {
   }
 });
 
-// Boutons +/− (réutilisent changerMaxPlayers)
 safeOn(mobileBtnMinus, 'click', () => changerMaxPlayers(-1));
 safeOn(mobileBtnPlus,  'click', () => changerMaxPlayers(+1));
 
-// Composition
 safeOn(mobileChatComp, 'click', () => {
   closeMobileChat();
   setTimeout(() => btnComposition?.click(), 150);
@@ -2441,14 +2486,12 @@ function updateMobileBubbleVisibility() {
   }
 }
 
-// Patch : appeler updateMobileBubbleVisibility quand on change d'écran
 const _origGoToScreen = goToScreen;
 goToScreen = function(screen) {
   _origGoToScreen(screen);
   updateMobileBubbleVisibility();
 };
 
-// Patch : mettre à jour la bulle/chat quand les données du lobby changent
 const _origRenderGameLobby = renderGameLobby;
 renderGameLobby = function(data) {
   _origRenderGameLobby(data);

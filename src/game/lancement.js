@@ -1,0 +1,270 @@
+// ═══════════════════════════════════════════════════════════
+// 🚀 LANCEMENT AUTOMATIQUE DE LA PARTIE
+// ═══════════════════════════════════════════════════════════
+//
+// Ce fichier gère le démarrage automatique quand la partie est pleine.
+//
+// Mécanique :
+//   1. Quand un joueur rejoint → on vérifie si la partie est pleine
+//   2. Si pleine → on écrit `lancementAt = maintenant + 8 sec`
+//   3. Tous les clients voient le compte à rebours (temps réel)
+//   4. Si un joueur QUITTE → on annule `lancementAt`
+//   5. À la fin des 8 sec → le premier client à le voir lance
+//      (transaction Firestore = anti-doublon)
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// 📚 IMPORTS
+// ═══════════════════════════════════════════════════════════
+
+let firestoreFns = null;
+
+async function getFirestoreFns() {
+  if (!firestoreFns) {
+    firestoreFns = await import(
+      'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js'
+    );
+  }
+  return firestoreFns;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ⏱️ CONSTANTES
+// ═══════════════════════════════════════════════════════════
+
+/** Durée du compte à rebours avant lancement (en ms) */
+export const DUREE_AVANT_LANCEMENT = 8 * 1000;   // 8 secondes
+
+// ═══════════════════════════════════════════════════════════
+// 📝 PROGRAMMER LE LANCEMENT
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Vérifie si la partie est pleine. Si oui ET pas déjà programmée → programme le lancement.
+ *
+ * À appeler juste après qu'un joueur rejoint la partie.
+ *
+ * @param {string} gameId
+ */
+export async function verifierEtProgrammerLancement(gameId) {
+  const { doc, getDoc, updateDoc } = await getFirestoreFns();
+
+  try {
+    const gameRef = doc(window.firebaseDB, 'games', gameId);
+    const snap = await getDoc(gameRef);
+    if (!snap.exists()) return { ok: false, raison: 'introuvable' };
+
+    const data = snap.data();
+
+    // Déjà en cours de lancement ou lancée
+    if (data.enCours) return { ok: false, raison: 'deja-en-cours' };
+    if (data.lancementAt) return { ok: false, raison: 'deja-programme' };
+
+    // Partie pas pleine
+    const nbJoueurs = (data.players || []).length;
+    if (nbJoueurs < data.maxPlayers) {
+      return { ok: false, raison: 'pas-plein', nbJoueurs, max: data.maxPlayers };
+    }
+
+    // ✅ Programme le lancement
+    const lancementAt = Date.now() + DUREE_AVANT_LANCEMENT;
+
+    await updateDoc(gameRef, { lancementAt });
+
+    console.log(`🚀 Lancement programmé dans ${DUREE_AVANT_LANCEMENT / 1000} sec.`);
+    return { ok: true, lancementAt };
+
+  } catch (err) {
+    console.warn('⚠️ Erreur verifierEtProgrammerLancement :', err);
+    return { ok: false, raison: 'erreur', err };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ❌ ANNULER LE LANCEMENT
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Annule le compte à rebours (si un joueur quitte avant la fin).
+ *
+ * À appeler juste après qu'un joueur quitte la partie.
+ *
+ * @param {string} gameId
+ */
+export async function annulerLancement(gameId) {
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  try {
+    await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+      lancementAt: null,
+    });
+    console.log(`❌ Lancement annulé.`);
+    return { ok: true };
+  } catch (err) {
+    console.warn('⚠️ Erreur annulerLancement :', err);
+    return { ok: false, err };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🎧 ÉCOUTER LE LANCEMENT
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Écoute en temps réel l'état de lancement de la partie.
+ *
+ * @param {string} gameId
+ * @param {Object} callbacks
+ * @param {Function} callbacks.onCountdown  - Appelé avec (restantMs) pendant le compte à rebours
+ * @param {Function} callbacks.onAnnule     - Appelé si le lancement est annulé
+ * @param {Function} callbacks.onLance      - Appelé quand la partie est lancée
+ * @returns {Function} unsubscribe
+ */
+export async function ecouterLancement(gameId, callbacks = {}) {
+  const { doc, onSnapshot } = await getFirestoreFns();
+
+  let dernierLancementAt = null;
+  let timerInterval = null;
+
+  const unsubscribe = onSnapshot(
+    doc(window.firebaseDB, 'games', gameId),
+    (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+
+      // ─── Partie lancée ───
+      if (data.enCours === true) {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        if (typeof callbacks.onLance === 'function') {
+          callbacks.onLance(data);
+        }
+        return;
+      }
+
+      // ─── Lancement annulé (joueur a quitté) ───
+      if (!data.lancementAt && dernierLancementAt) {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        if (typeof callbacks.onAnnule === 'function') {
+          callbacks.onAnnule();
+        }
+        dernierLancementAt = null;
+        return;
+      }
+
+      // ─── Nouveau compte à rebours ───
+      if (data.lancementAt && data.lancementAt !== dernierLancementAt) {
+        dernierLancementAt = data.lancementAt;
+
+        if (timerInterval) clearInterval(timerInterval);
+
+        timerInterval = setInterval(() => {
+          const restant = dernierLancementAt - Date.now();
+
+          if (restant <= 0) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+
+            // ✅ Le premier client qui voit la fin tente de lancer
+            lancerPartieSiPossible(gameId);
+
+            if (typeof callbacks.onCountdown === 'function') {
+              callbacks.onCountdown(0);
+            }
+            return;
+          }
+
+          if (typeof callbacks.onCountdown === 'function') {
+            callbacks.onCountdown(restant);
+          }
+        }, 100);
+      }
+    }
+  );
+
+  return () => {
+    if (timerInterval) clearInterval(timerInterval);
+    unsubscribe();
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🚀 LANCEMENT EFFECTIF (anti-doublon)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Lance la partie de manière atomique.
+ * Utilise une transaction Firestore : le premier client qui écrit gagne,
+ * les autres voient que c'est déjà fait et abandonnent.
+ *
+ * @param {string} gameId
+ * @returns {Object} { ok, raison, data }
+ */
+export async function lancerPartieSiPossible(gameId) {
+  const { doc, runTransaction } = await getFirestoreFns();
+
+  try {
+    const gameRef = doc(window.firebaseDB, 'games', gameId);
+
+    const resultat = await runTransaction(window.firebaseDB, async (transaction) => {
+      const snap = await transaction.get(gameRef);
+      if (!snap.exists()) return { ok: false, raison: 'introuvable' };
+
+      const data = snap.data();
+
+      // ─── Déjà lancée ───
+      if (data.enCours === true) {
+        return { ok: false, raison: 'deja-en-cours' };
+      }
+
+      // ─── Partie pas pleine → on annule ───
+      const nbJoueurs = (data.players || []).length;
+      if (nbJoueurs < data.maxPlayers) {
+        transaction.update(gameRef, { lancementAt: null });
+        return { ok: false, raison: 'pas-plein' };
+      }
+
+      // ─── Lance la partie ───
+      transaction.update(gameRef, {
+        enCours: true,
+        phase: 'avant-crepuscule',
+        phaseIndex: 0,
+        tour: 1,
+        lancementAt: null,
+        startedAt: Date.now(),
+      });
+
+      return { ok: true };
+    });
+
+    if (resultat.ok) {
+      console.log(`🎮 Partie lancée !`);
+    } else {
+      console.log(`⏸️ Lancement refusé : ${resultat.raison}`);
+    }
+
+    return resultat;
+
+  } catch (err) {
+    // Erreur de transaction → un autre client a gagné la course
+    console.log('⏸️ Transaction perdue (un autre client a lancé).');
+    return { ok: false, raison: 'transaction-perdue', err };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📦 EXPORTS
+// ═══════════════════════════════════════════════════════════
+
+export default {
+  DUREE_AVANT_LANCEMENT,
+  verifierEtProgrammerLancement,
+  annulerLancement,
+  ecouterLancement,
+  lancerPartieSiPossible,
+};

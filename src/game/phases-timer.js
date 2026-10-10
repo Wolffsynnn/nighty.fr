@@ -2,6 +2,7 @@
 // ⏱️ TIMER DES PHASES
 // ═══════════════════════════════════════════════════════════
 
+import { resoudrePhaseTerminee } from './resolution.js';
 import { prochainePhaseActive, ORDRE_PHASES } from './roles-actifs.js';
 
 // ═══════════════════════════════════════════════════════════
@@ -161,14 +162,22 @@ export async function avancerPhaseSiPossible(gameId) {
       return {
         ok: true,
         anciennePhase: phaseActuelle,
+        ancienTour: tourActuel,
         nouvellePhase: suivant.phase,
         nouveauTour: suivant.tour,
       };
     });
 
     if (resultat.ok) {
-      console.log(`▶️ ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
-    }
+        console.log(`▶️ ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
+  
+        // ✅ Résout la phase qui vient de se terminer
+        resoudrePhaseTerminee(
+          gameId,
+          resultat.anciennePhase,
+          resultat.ancienTour
+        ).catch(err => console.warn('⚠️ Résolution échouée:', err));
+      }
 
     return resultat;
 

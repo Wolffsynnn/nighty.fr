@@ -3056,14 +3056,21 @@ body.is-mobile:not(.chat-open) .back-btn {
    🎮 PARTIE LANCÉE → on cache les éléments du lobby
    ═══════════════════════════════════════════════════════════ */
 
-body.game-started .game-lobby-bottombar,
-body.game-started .game-lobby-topbar,
-body.game-started .gl-share-bar,
-body.game-started .back-btn,
-body.game-started .mobile-chat-bubble,
-body.game-started #btn-back-game-lobby {
-  display: none !important;
-}
+/* ═══════════════════════════════════════════════════════════
+   🎮 PARTIE LANCÉE → on cache les éléments du lobby
+   (MAIS on garde la bulle chat mobile + le bouton retour)
+   ═══════════════════════════════════════════════════════════ */
+
+   body.game-started .game-lobby-bottombar,
+   body.game-started .game-lobby-topbar,
+   body.game-started .gl-share-bar {
+     display: none !important;
+   }
+   
+   /* La bulle chat mobile reste visible pendant la partie */
+   body.game-started .mobile-chat-bubble {
+     display: flex !important;
+   }
 /* ═══════════════════════════════════════════════════════════
    🎬 AFFICHAGE DE LA PHASE
    ═══════════════════════════════════════════════════════════ */
@@ -3143,3 +3150,122 @@ body.game-started #btn-back-game-lobby {
   .phase-overlay[data-phase="jour"]             .phase-nom::before { content: '☀️ '; }
   .phase-overlay[data-phase="vote"]             .phase-nom::before { content: '🗳️ '; }
   .phase-overlay[data-phase="soir"]             .phase-nom::before { content: '🌃 '; }
+
+  /* ═══════════════════════════════════════════════════════════
+   🎯 MODAL D'ACTION
+   ═══════════════════════════════════════════════════════════ */
+.action-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.action-modal.hidden { display: none; }
+
+.action-modal-box {
+  width: min(95%, 500px);
+  max-height: 85vh;
+  padding: 24px;
+  background: rgba(15, 15, 30, 0.97);
+  border: 2px solid rgba(255, 179, 71, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.9), 0 0 80px rgba(255, 150, 50, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.action-modal-role {
+  font-family: 'Georgia', serif;
+  font-size: 0.85rem;
+  color: #ffb347;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.action-modal-title {
+  font-family: 'Georgia', serif;
+  font-size: 1.4rem;
+  color: #ffb347;
+  margin: 0;
+  text-align: center;
+  text-shadow: 0 0 20px rgba(255, 150, 50, 0.6);
+}
+
+.action-modal-desc {
+  font-size: 0.9rem;
+  color: #c8c8d8;
+  font-style: italic;
+  text-align: center;
+  margin: 0;
+}
+
+.action-modal-targets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.action-cible {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 179, 71, 0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #fff;
+  font-family: 'Georgia', serif;
+}
+
+.action-cible:hover {
+  border-color: #ffb347;
+  background: rgba(255, 179, 71, 0.15);
+  transform: translateY(-2px);
+}
+
+.action-cible img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.action-cible-pseudo {
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #ffb347;
+  text-align: center;
+}
+
+.action-modal-skip {
+  padding: 12px;
+  font-family: 'Georgia', serif;
+  font-size: 0.9rem;
+  color: #ff6666;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 102, 102, 0.5);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.action-modal-skip.hidden { display: none; }
+.action-modal-skip:hover { background: rgba(255, 102, 102, 0.2); }
+/* ═══════════════════════════════════════════════════════════
+   📢 MESSAGES SYSTÈME
+   ═══════════════════════════════════════════════════════════ */
+   .gl-chat-msg-systeme {
+    background: rgba(255, 179, 71, 0.1) !important;
+    border-left: 3px solid #ffb347;
+    font-style: italic;
+    color: #ffe0a0 !important;
+  }

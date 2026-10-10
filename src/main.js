@@ -1275,12 +1275,11 @@ function afficherPhase(phase, tour) {
   elNom.textContent = NOMS_PHASES[phase] || phase;
   elTour.textContent = `Tour ${tour}`;
 
-  // ✅ Met à jour l'état des chats
   updateChatInputState();
 }
 
 // ═══════════════════════════════════════════════════════════
-// 💬 ÉTAT DES CHATS (ouvert/fermé selon phase)
+// 💬 ÉTAT DES CHATS
 // ═══════════════════════════════════════════════════════════
 
 function reconstruireJeuPourChat(data) {
@@ -1314,7 +1313,6 @@ function updateChatInputState() {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  // Si la partie n'est pas en cours → chat ouvert (lobby)
   if (currentGameData.enCours !== true) {
     if (glChatInput) {
       glChatInput.disabled = false;
@@ -1347,6 +1345,181 @@ function updateChatInputState() {
       : `🔒 Chat fermé (${currentGameData.phase})`;
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+// 🎯 MODAL D'ACTION (rôles de nuit)
+// ═══════════════════════════════════════════════════════════
+
+const actionModal        = document.getElementById('action-modal');
+const actionModalRole    = document.getElementById('action-modal-role');
+const actionModalTitle   = document.getElementById('action-modal-title');
+const actionModalDesc    = document.getElementById('action-modal-desc');
+const actionModalTargets = document.getElementById('action-modal-targets');
+const actionModalSkip    = document.getElementById('action-modal-skip');
+
+let actionDejaEnvoyee = false;
+let actionPhaseKey = null;
+
+const ROLES_ACTION = {
+  'crepuscule': {
+    'voyante':         { titre: 'Choisis qui sonder',     desc: 'Tu découvriras son rôle.',                peutPasser: true },
+    'voyante-bavarde': { titre: 'Choisis qui sonder',     desc: 'Le village apprendra son rôle au matin.', peutPasser: true },
+    'garde':           { titre: 'Choisis qui protéger',   desc: 'Il sera protégé des loups cette nuit.',   peutPasser: true },
+  },
+  'minuit': {
+    'loup-garou':  { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
+    'loup-noir':   { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
+    'loup-bavard': { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
+    'loup-blanc':  { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
+    'nightmares-original': { titre: 'Choisis qui marquer', desc: 'Il mourra au tour suivant.',    peutPasser: false },
+    'rodeur':      { titre: 'Choisis qui roder',      desc: 'Rode 2 nuits autour de lui.',        peutPasser: false },
+  },
+  'apres-minuit': {
+    'sorciere': { titre: 'Utilise une potion', desc: '1 potion par nuit.', peutPasser: true },
+  },
+};
+
+function ouvrirActionModal() {
+  if (!currentGameData) return;
+  if (currentGameData.enCours !== true) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const phase = currentGameData.phase;
+  const tour  = currentGameData.tour;
+  const monRole = currentGameData.rolesJoueurs?.[user.uid];
+  const vivants = currentGameData.joueursVivants || [];
+  const vivant = vivants.includes(user.uid);
+
+  const config = ROLES_ACTION[phase]?.[monRole];
+
+  if (!config || !vivant) {
+    fermerActionModal();
+    return;
+  }
+
+  const phaseKey = `${phase}-${tour}`;
+  if (actionPhaseKey === phaseKey && actionDejaEnvoyee) return;
+
+  if (actionPhaseKey !== phaseKey) {
+    actionPhaseKey = phaseKey;
+    actionDejaEnvoyee = false;
+  }
+
+  actionModalRole.textContent = getRoleById(monRole)?.nom || monRole;
+  actionModalTitle.textContent = config.titre;
+  actionModalDesc.textContent = config.desc;
+  actionModalSkip.classList.toggle('hidden', !config.peutPasser);
+
+  rendreCibles(monRole);
+  actionModal.classList.remove('hidden');
+}
+
+function rendreCibles(monRole) {
+  if (!actionModalTargets) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  const players = currentGameData.players || [];
+  const pseudos = currentGameData.playersPseudo || [];
+  const vivants = currentGameData.joueursVivants || [];
+
+  const cibles = [];
+  players.forEach((uid, i) => {
+    if (!vivants.includes(uid)) return;
+    if (uid === user.uid && ['voyante', 'voyante-bavarde'].includes(monRole)) return;
+    cibles.push({ uid, pseudo: pseudos[i] });
+  });
+
+  if (cibles.length === 0) {
+    actionModalTargets.innerHTML = '<p class="friends-empty">Aucune cible.</p>';
+    return;
+  }
+
+  const IMG = 'https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png';
+
+  actionModalTargets.innerHTML = cibles.map(c => `
+    <button class="action-cible" data-uid="${c.uid}" data-pseudo="${c.pseudo}">
+      <img src="${IMG}" alt="${c.pseudo}" />
+      <span class="action-cible-pseudo">${c.pseudo}</span>
+    </button>
+  `).join('');
+
+  actionModalTargets.querySelectorAll('.action-cible').forEach(btn => {
+    btn.addEventListener('click', () => {
+      envoyerAction(btn.dataset.uid, btn.dataset.pseudo);
+    });
+  });
+}
+
+async function envoyerAction(cibleUid, ciblePseudo) {
+  if (actionDejaEnvoyee) return;
+  if (!currentGameId) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  actionDejaEnvoyee = true;
+
+  const { collection, addDoc } = await getFirestoreFns();
+
+  try {
+    await addDoc(collection(window.firebaseDB, 'games', currentGameId, 'actions'), {
+      uid: user.uid,
+      pseudo: user.displayName,
+      type: 'cible',
+      cible: cibleUid,
+      ciblePseudo,
+      tour: currentGameData.tour,
+      phase: currentGameData.phase,
+      at: Date.now(),
+    });
+
+    showMessage(`✅ Action envoyée sur ${ciblePseudo}`);
+    fermerActionModal();
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+    actionDejaEnvoyee = false;
+  }
+}
+
+async function passerAction() {
+  if (actionDejaEnvoyee) return;
+  if (!currentGameId) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  actionDejaEnvoyee = true;
+
+  const { collection, addDoc } = await getFirestoreFns();
+
+  try {
+    await addDoc(collection(window.firebaseDB, 'games', currentGameId, 'actions'), {
+      uid: user.uid,
+      pseudo: user.displayName,
+      type: 'passer',
+      tour: currentGameData.tour,
+      phase: currentGameData.phase,
+      at: Date.now(),
+    });
+
+    showMessage('⏭️ Passé');
+    fermerActionModal();
+  } catch (err) {
+    showMessage('❌ ' + (err.code || err.message));
+    actionDejaEnvoyee = false;
+  }
+}
+
+function fermerActionModal() {
+  if (actionModal) actionModal.classList.add('hidden');
+  if (actionModalTargets) actionModalTargets.innerHTML = '';
+}
+
+safeOn(actionModalSkip, 'click', passerAction);
 
 // ═══════════════════════════════════════════════════════════
 // 🚀 ÉCOUTE DU LANCEMENT AUTOMATIQUE
@@ -1421,6 +1594,9 @@ function ecouterLeTimerDePhase(gameId) {
     },
     onPhaseChange: (nouvellePhase, nouveauTour) => {
       console.log(`🎬 Nouvelle phase : ${nouvellePhase} (Tour ${nouveauTour})`);
+      actionDejaEnvoyee = false;
+      actionPhaseKey = null;
+      fermerActionModal();
     },
   }).then(unsub => {
     phaseTimerUnsubscribe = unsub;
@@ -1697,9 +1873,10 @@ async function watchGame(gameId) {
 
       onPartieLancee(data);
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
-
-      // ✅ Met à jour l'état du chat
       updateChatInputState();
+
+      // ✅ Vérifie si c'est mon tour de jouer
+      ouvrirActionModal();
       return;
     }
 
@@ -1725,7 +1902,7 @@ function renderGameLobby(data) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🎮 PARTIE LANCÉE → écran de jeu
+// 🎮 PARTIE LANCÉE
 // ═══════════════════════════════════════════════════════════
 
 function onPartieLancee(data) {
@@ -1956,14 +2133,27 @@ const glChatSend     = document.getElementById('gl-chat-send');
 function renderChat(messages) {
   if (!glChatMessages) return;
 
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
   const wasAtBottom =
     glChatMessages.scrollHeight - glChatMessages.scrollTop - glChatMessages.clientHeight < 40;
 
-  glChatMessages.innerHTML = messages.map(m => `
-    <div class="gl-chat-msg">
-      <span class="gl-chat-author">${m.pseudo} :</span>${m.text}
-    </div>
-  `).join('');
+  // ✅ Filtre : garde les messages publics + ceux qui me sont destinés
+  const messagesFiltres = messages.filter(m => {
+    if (m.pour) return m.pour === user.uid;
+    return true;
+  });
+
+  glChatMessages.innerHTML = messagesFiltres.map(m => {
+    const classes = m.systeme ? 'gl-chat-msg gl-chat-msg-systeme' : 'gl-chat-msg';
+    const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
+    return `
+      <div class="${classes}">
+        ${auteur}${m.text}
+      </div>
+    `;
+  }).join('');
 
   if (wasAtBottom) {
     glChatMessages.scrollTop = glChatMessages.scrollHeight;
@@ -1978,7 +2168,6 @@ async function sendChatMessage() {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  // ✅ Si partie pas lancée → chat ouvert (lobby)
   if (currentGameData?.enCours === true) {
     const jeuMini = reconstruireJeuPourChat(currentGameData);
     const moi = jeuMini.joueurs.find(j => j.uid === user.uid);
@@ -2215,6 +2404,10 @@ async function leaveGame() {
       phaseTimerUnsubscribe = null;
     }
 
+    fermerActionModal();
+    actionDejaEnvoyee = false;
+    actionPhaseKey = null;
+
     roleRevealDejaVu = false;
     document.body.classList.remove('game-started');
     document.body.classList.remove('phase-jour', 'phase-nuit');
@@ -2233,7 +2426,7 @@ safeOn(btnLeaveGame, 'click', leaveGame);
 safeOn(btnBackGameLobby, 'click', leaveGame);
 
 // ═══════════════════════════════════════════════════════════
-// 🎯 COMPOSITION + LANCEMENT
+// 🎯 COMPOSITION
 // ═══════════════════════════════════════════════════════════
 
 const compositionPopup   = document.getElementById('composition-popup');
@@ -2564,7 +2757,7 @@ function majBoutonsMaxPlayers() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 💬 MOBILE : Bulle chat + Chat plein écran
+// 💬 MOBILE : Bulle chat
 // ═══════════════════════════════════════════════════════════
 
 const mobileChatBubble   = document.getElementById('mobile-chat-bubble');
@@ -2626,7 +2819,6 @@ async function sendMobileChatMessage() {
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  // ✅ Si partie pas lancée → chat ouvert (lobby)
   if (currentGameData?.enCours === true) {
     const jeuMini = reconstruireJeuPourChat(currentGameData);
     const moi = jeuMini.joueurs.find(j => j.uid === user.uid);
@@ -2677,10 +2869,6 @@ safeOn(mobileChatComp, 'click', () => {
   closeMobileChat();
   setTimeout(() => btnComposition?.click(), 150);
 });
-
-// ═══════════════════════════════════════════════════════════
-// 🔄 Afficher/masquer la bulle selon l'écran actif (mobile)
-// ═══════════════════════════════════════════════════════════
 
 function updateMobileBubbleVisibility() {
   if (!mobileChatBubble) return;

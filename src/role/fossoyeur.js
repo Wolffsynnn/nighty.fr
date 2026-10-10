@@ -13,13 +13,19 @@ export const Fossoyeur = {
     estSecondaire: false,
     description: 'À sa mort, révèle au village 2 joueurs (1 choisi + 1 aléatoire du camp opposé). Un des deux est un Loup, l\'autre un Villageois.',
     pouvoir: 'À sa mort, il choisit un joueur et le jeu révèle au village 2 joueurs : le choisi + un joueur aléatoire du camp opposé. Le village sait qu\'il y a forcément 1 loup parmi les 2.',
-    utilisation: '1 seule fois, à sa mort.',
+    utilisation: '1 seule fois, à sa mort. Facultatif.',
     precision: 'Si le joueur choisi est villageois → le random est un loup. Si le joueur choisi est loup → le random est un villageois.',
+    reglesSpeciales: [
+      'Peut choisir n\'importe qui (village, loup, neutre...).',
+      'Ne peut pas se choisir lui-même (il est mort).',
+      'Le random du camp opposé exclut toujours les morts.',
+      'Peut décider de ne rien révéler (facultatif).',
+    ],
     victoire: 'Village, quand tous les loups et les neutres sont morts.',
   
     // ═══════════ PHASES ═══════════
     phases: ['aube'],
-    priorite: 2,       // Après le Chasseur (priorité 1)
+    priorite: 2,   // Après le Chasseur (priorité 1)
   
     // ═══════════ CHATS ═══════════
     chats: ['public'],
@@ -50,17 +56,24 @@ export const Fossoyeur = {
         doitChoisir: true,
         nombreCibles: 1,
         visiblePar: 'soi',
-        ciblesInterdites: ['soi'],
+        ciblesInterdites: ['soi', 'morts'],
         urgence: true,
-        message: '⚰️ Tu es mort ! Choisis 1 joueur. Le village verra : lui + 1 autre du camp opposé.',
+        facultatif: true,   // ✅ NOUVEAU : il peut passer
+        message: '⚰️ Tu es mort ! Choisis 1 joueur. Le village verra : lui + 1 autre du camp opposé. (Ou passe si tu préfères.)',
       };
     },
   
-    // ─── Appelée quand le Fossoyeur a choisi sa cible ───
+    // ─── Appelée quand le Fossoyeur a choisi sa cible (ou passé) ───
     onDeathAction(ctx) {
       const data = ctx.jeu.fossoyeur?.[ctx.moi.uid];
       if (!data || data.dejaRevele) return null;
-      if (!ctx.cible) return null;
+  
+      // Le Fossoyeur a choisi de ne rien révéler
+      if (!ctx.cible) {
+        data.dejaRevele = true;
+        ctx.journaliser(`⚰️ Le Fossoyeur ${ctx.moi.pseudo} n'a rien révélé.`);
+        return { type: 'fossoyeur-passe' };
+      }
   
       const choisi = ctx.jeu.joueurs.find(j => j.uid === ctx.cible);
       if (!choisi) return null;
@@ -68,7 +81,7 @@ export const Fossoyeur = {
       // Détermine le camp du joueur choisi
       const choisiEstVillage = choisi.camp === 'village';
   
-      // Récupère la liste des joueurs du camp opposé (vivants)
+      // Récupère la liste des joueurs du camp opposé (vivants uniquement)
       const vivants = ctx.jeu.joueurs.filter(j => j.vivant);
       const campOppose = choisiEstVillage
         ? vivants.filter(j => j.camp === 'loups')
@@ -76,7 +89,8 @@ export const Fossoyeur = {
   
       if (campOppose.length === 0) {
         // Pas de camp opposé → ne peut rien révéler
-        ctx.journaliser(`⚰️ Le Fossoyeur ne peut rien révéler (pas de camp opposé).`);
+        data.dejaRevele = true;
+        ctx.journaliser(`⚰️ Le Fossoyeur ne peut rien révéler (pas de camp opposé vivant).`);
         return null;
       }
   

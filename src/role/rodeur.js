@@ -1,5 +1,17 @@
 // ═══════════════════════════════════════════════════════════
-// 🌫️ LE RODEUR
+// 🌫️ LE RODEUR  —  CRÉATION ORIGINALE
+// ═══════════════════════════════════════════════════════════
+//
+// Rôle NIGHTMARES unique.
+// Rode autour d'un joueur pendant 2 nuits.
+// Sa cible doit le démasquer et le tuer avant la fin des 2 tours,
+// sinon elle meurt.
+//
+// Mécanique :
+//   - Nuit N   : il choisit sa cible → la cible est prévenue (carte + shaders).
+//   - Nuit N+1 : il continue de roder → la cible a un dernier tour.
+//   - Fin N+1  : si la cible n'a pas tué le Rodeur → elle meurt.
+//   - Si le Rodeur meurt (peu importe qui le tue) → la cible est sauvée.
 // ═══════════════════════════════════════════════════════════
 
 import { TEXTE_RODEUR } from '../data/mots.js';
@@ -20,15 +32,18 @@ export const Rodeur = {
   reglesSpeciales: [
     'La cible ignore qui est le Rodeur.',
     'La cible peut le tuer par n\'importe quel moyen.',
-    'N\'importe quelle mort du Rodeur pendant les 2 tours sauve la cible.',
+    'N\'importe quelle mort du Rodeur pendant les 2 tours sauve la cible (peu importe qui l\'a tué).',
     'Si la cible n\'a rien fait à la fin des 2 tours → elle meurt.',
     'Le Rodeur sait qu\'il risque de se faire tuer par sa cible.',
+    'Ne peut jamais cibler 2 fois la même personne.',
+    'Peut roder autour d\'un allié Nightmares (mais c\'est inutile).',
+    'Effet visuel en SHADERS sur l\'écran de la cible (à faire plus tard).',
   ],
   victoire: 'Nightmares, quand tous les autres joueurs sont morts.',
 
   // ═══════════ PHASES ═══════════
   phases: ['minuit'],
-  priorite: 6,       // Après Nightmares (priorité 5)
+  priorite: 6,   // Après Nightmares (priorité 5)
 
   // ═══════════ CHATS ═══════════
   chats: ['public', 'nightmares'],
@@ -38,9 +53,10 @@ export const Rodeur = {
   onGameStart(ctx) {
     if (!ctx.jeu.rodeur) ctx.jeu.rodeur = {};
     ctx.jeu.rodeur[ctx.moi.uid] = {
-      cibleActuelle: null,       // UID de la cible en cours
-      nuitDebut: null,           // Nuit où il a commencé à roder
-      nuitsRestantes: 0,         // Nuits restantes sur la cible
+      cibleActuelle: null,
+      nuitDebut: null,
+      nuitsRestantes: 0,
+      anciennesCibles: [],   // ✅ NOUVEAU : historique pour ne jamais re-cibler
     };
     return null;
   },
@@ -53,7 +69,7 @@ export const Rodeur = {
     if (data.cibleActuelle && data.nuitsRestantes > 0) {
       const cible = ctx.jeu.joueurs.find(j => j.uid === data.cibleActuelle);
       return {
-        doitChoisir: false,       // Pas de nouveau choix
+        doitChoisir: false,
         cibleActuelle: data.cibleActuelle,
         nuitsRestantes: data.nuitsRestantes,
         message: `🌫️ Tu continues de roder autour de ${cible?.pseudo || '?'}. (${data.nuitsRestantes} nuit${data.nuitsRestantes > 1 ? 's' : ''} restante${data.nuitsRestantes > 1 ? 's' : ''})`,
@@ -61,11 +77,14 @@ export const Rodeur = {
     }
 
     // ─── CAS 2 : Il doit choisir une nouvelle cible ───
+    // ✅ Cibles interdites : soi + anciennes cibles
+    const ciblesInterdites = ['soi', 'morts', ...(data.anciennesCibles || [])];
+
     return {
       doitChoisir: true,
       nombreCibles: 1,
       visiblePar: 'soi',
-      ciblesInterdites: ['soi'],
+      ciblesInterdites,
       message: '🌫️ Choisis un joueur autour duquel roder pendant 2 nuits. Il devra te tuer avant la fin, sinon il mourra.',
     };
   },
@@ -76,28 +95,32 @@ export const Rodeur = {
 
     // ─── CAS 1 : Il rode déjà → continue ───
     if (data.cibleActuelle && data.nuitsRestantes > 0) {
-      // Décrémente le compteur
       data.nuitsRestantes -= 1;
 
-      // Envoie un message privé à la cible (rappel)
-      ctx.envoyerMessage(
-        data.cibleActuelle,
-        `🌫️ Tu sens toujours la présence du Rodeur... Tu as encore ${data.nuitsRestantes} tour${data.nuitsRestantes > 1 ? 's' : ''} pour le tuer.`
-      );
+      const cible = ctx.jeu.joueurs.find(j => j.uid === data.cibleActuelle);
+
+      // Message privé à la cible (rappel)
+      if (cible) {
+        ctx.envoyerMessage(
+          cible.uid,
+          `🌫️ Tu sens toujours la présence du Rodeur... Tu as encore ${data.nuitsRestantes} tour${data.nuitsRestantes > 1 ? 's' : ''} pour le tuer.`
+        );
+      }
 
       ctx.journaliser(
-        `🌫️ Le Rodeur ${ctx.moi.pseudo} continue de roder autour de ${ctx.jeu.joueurs.find(j => j.uid === data.cibleActuelle)?.pseudo} (${data.nuitsRestantes} tour${data.nuitsRestantes > 1 ? 's' : ''} restant${data.nuitsRestantes > 1 ? 's' : ''})`
+        `🌫️ Le Rodeur ${ctx.moi.pseudo} continue de roder autour de ${cible?.pseudo} (${data.nuitsRestantes} tour${data.nuitsRestantes > 1 ? 's' : ''} restant${data.nuitsRestantes > 1 ? 's' : ''})`
       );
 
-      // Si c'est la fin des 2 tours → la cible meurt
+      // ─── Fin des 2 tours → la cible meurt ───
       if (data.nuitsRestantes <= 0) {
-        const cible = ctx.jeu.joueurs.find(j => j.uid === data.cibleActuelle);
         if (cible && cible.vivant) {
           // Vérifie protection
-          if (ctx.jeu.protections?.includes(cible.uid)) {
-            ctx.journaliser(`🌫️ Le Rodeur : ${cible.pseudo} protégé(e), il survit !`);
+          const protegeParGarde = ctx.jeu.protectionsGarde?.includes(cible.uid);
+          const protegeParAnge  = ctx.jeu.protectionsAnge?.includes(cible.uid);
+
+          if (protegeParGarde || protegeParAnge) {
+            ctx.journaliser(`🌫️ Le Rodeur : ${cible.pseudo} protégé(e), il/elle survit !`);
           } else {
-            // ─── Mort de la cible ───
             ctx.tuer(cible.uid);
             ctx.reveleAuVillage(
               `🌫️ ${cible.pseudo} n'a pas réussi à démasquer le Rodeur... et il est mort.`
@@ -105,7 +128,11 @@ export const Rodeur = {
             ctx.journaliser(`💀 ${cible.pseudo} est mort du Rodeur (n'a pas réussi à le tuer).`);
           }
         }
-        // Reset
+
+        // ✅ Reset + mémorise la cible comme ancienne
+        if (data.cibleActuelle) {
+          data.anciennesCibles.push(data.cibleActuelle);
+        }
         data.cibleActuelle = null;
         data.nuitDebut = null;
       }
@@ -122,12 +149,18 @@ export const Rodeur = {
       const cible = ctx.jeu.joueurs.find(j => j.uid === ctx.cible);
       if (!cible || !cible.vivant) return null;
 
+      // ✅ Vérifie qu'il ne re-cible pas une ancienne
+      if (data.anciennesCibles.includes(cible.uid)) {
+        ctx.envoyerMessage(ctx.moi.uid, `❌ Tu ne peux pas roder à nouveau autour de ${cible.pseudo}.`);
+        return { bloque: true };
+      }
+
       // Enregistre la nouvelle cible
       data.cibleActuelle = cible.uid;
       data.nuitDebut = ctx.jeu.tour || 1;
-      data.nuitsRestantes = 1;   // Il reste 1 nuit après celle-ci (2 nuits au total)
+      data.nuitsRestantes = 1;   // Il reste 1 nuit après celle-ci
 
-      // Envoie la carte à la cible (affichée pendant 2 nuits)
+      // Envoie la carte à la cible
       ctx.envoyerMessage(
         cible.uid,
         `🌫️ **Vous êtes la cible du Rodeur.**\n` +
@@ -150,6 +183,7 @@ export const Rodeur = {
         cible: cible.uid,
         nuitsTotal: 2,
         carte: TEXTE_RODEUR,
+        effetVisuel: 'rodeur-shader',   // ✅ Effet shader à faire plus tard
       };
     }
 

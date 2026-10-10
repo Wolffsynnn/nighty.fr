@@ -39,6 +39,16 @@ export const LoupBavard = {
     return null;
   },
 
+  // ─── Envoie un message à tous les loups vivants (sauf soi-même) ───
+  _prevenirLoups(ctx, message) {
+    const loups = ctx.jeu.joueurs.filter(
+      j => j.camp === 'loups' && j.vivant && j.uid !== ctx.moi.uid
+    );
+    loups.forEach(loup => {
+      ctx.envoyerMessage(loup.uid, message);
+    });
+  },
+
   onAube(ctx) {
     const data = ctx.jeu.motsBavards?.[ctx.moi.uid];
     if (!data) return null;
@@ -50,9 +60,16 @@ export const LoupBavard = {
     data.reussiCeJour = false;
     data.jours += 1;
 
+    // Message perso au Loup Bavard
     ctx.envoyerMessage(
       ctx.moi.uid,
       `🗣️ Ton mot du jour est : "${mot}". Cache-le dans un autre mot dans le chat public avant la fin du jour. Sinon, tu meurs ce soir.`
+    );
+
+    // ✅ NOUVEAU : prévient les autres loups
+    this._prevenirLoups(
+      ctx,
+      `🗣️ Le Loup Bavard doit placer le mot "${mot}" aujourd'hui.`
     );
 
     ctx.journaliser(`🗣️ Le Loup Bavard ${ctx.moi.pseudo} doit placer : "${mot}"`);
@@ -69,12 +86,27 @@ export const LoupBavard = {
     const mot = data.motActuel.toLowerCase();
     const texte = ctx.messageTexte.toLowerCase();
 
-    // Cherche le mot caché DANS un autre mot
-    const regex = new RegExp(`[a-zà-ÿ]${mot}[a-zà-ÿ]`, 'i');
+    // ✅ CORRIGÉ : au moins 1 lettre AVANT ou APRÈS
+    // "Aurevoir" → "a" avant "revoir" → match
+    // "RevoirArbre" → "a" après "revoir" → match
+    // "revoir" tout seul → pas de lettre avant/après → pas de match
+    const lettre = '[a-zà-ÿ]';
+    const regex = new RegExp(
+      `(${lettre}${mot})|(${mot}${lettre})`,
+      'i'
+    );
 
     if (regex.test(texte)) {
       data.reussiCeJour = true;
+
       ctx.envoyerMessage(ctx.moi.uid, `✅ Mot "${mot}" placé avec succès ! Tu survis.`);
+
+      // ✅ NOUVEAU : prévient les autres loups
+      this._prevenirLoups(
+        ctx,
+        `✅ Le Loup Bavard a placé son mot et peut se rendormir tranquillement.`
+      );
+
       ctx.journaliser(`✅ Le Loup Bavard a placé son mot "${mot}" : "${ctx.messageTexte}"`);
       return { reussi: true, mot, message: ctx.messageTexte };
     }

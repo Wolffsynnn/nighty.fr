@@ -10,7 +10,7 @@ export const AngeGardien = {
     camp: 'village',
     type: ['protection'],
     estUnique: true,
-    estSecondaire: true,       // Rôle secondaire (donné au 1er mort)
+    estSecondaire: true,
     attribution: 'Attribué automatiquement au premier joueur mort de la partie.',
     description: 'Le premier mort devient Ange Gardien. Une nuit sur deux, il protège un joueur vivant de toutes les attaques.',
     pouvoir: 'Toutes les 2 nuits, peut protéger 1 joueur vivant de son choix contre toutes les attaques possibles (loups, Nightmares, pouvoirs d\'élimination, etc.). Peut protéger n\'importe qui, même un ennemi.',
@@ -19,15 +19,16 @@ export const AngeGardien = {
       'Ne remplace pas son ancien rôle → il est mort, son ancien rôle n\'a plus d\'effet.',
       'Peut protéger n\'importe quel camp (Village, Loups, Neutres, Nightmares...).',
       'Protection totale : annule toutes les attaques de la nuit.',
+      'Un message PUBLIC est envoyé à la fin de la nuit pour dire si la protection a marché ou pas (sans révéler qui a été protégé).',
     ],
     victoire: 'Village, quand tous les loups et les neutres sont morts.',
   
     // ═══════════ PHASES ═══════════
     phases: ['avant-crepuscule'],
-    priorite: 2,
+    priorite: 1,   // ✅ CORRIGÉ : agit AVANT les loups (petit = prioritaire)
   
     // ═══════════ CHATS ═══════════
-    chats: ['public', 'morts'],   // Les morts ont accès au chat des morts
+    chats: ['public', 'morts'],
   
     // ═══════════ LOGIQUE ═══════════
   
@@ -55,7 +56,6 @@ export const AngeGardien = {
   
       const tour = ctx.jeu.tour || 1;
   
-      // Peut protéger une nuit sur deux
       const peutProteger =
         !data.derniereNuitProtection ||
         (tour - data.derniereNuitProtection) >= 2;
@@ -86,7 +86,6 @@ export const AngeGardien = {
   
       const tour = ctx.jeu.tour || 1;
   
-      // Vérifie le cooldown
       const peutProteger =
         !data.derniereNuitProtection ||
         (tour - data.derniereNuitProtection) >= 2;
@@ -96,6 +95,14 @@ export const AngeGardien = {
       // Enregistre la protection
       if (!ctx.jeu.protections) ctx.jeu.protections = [];
       ctx.jeu.protections.push(cible.uid);
+  
+      // ✅ NOUVEAU : trace pour savoir à la fin si ça a servi
+      if (!ctx.jeu.protectionAngeEnCours) ctx.jeu.protectionAngeEnCours = [];
+      ctx.jeu.protectionAngeEnCours.push({
+        ange: ctx.moi.uid,
+        cible: cible.uid,
+        tour: tour,
+      });
   
       data.derniereNuitProtection = tour;
   
@@ -111,6 +118,35 @@ export const AngeGardien = {
         cible: cible.uid,
         tour,
       };
+    },
+  
+    // ─── Appelée à la FIN de la nuit ───
+    // Vérifie si la protection a servi, envoie un message public.
+    onNightEnd(ctx) {
+      const protections = ctx.jeu.protectionAngeEnCours || [];
+      if (protections.length === 0) return null;
+  
+      const tour = ctx.jeu.tour || 1;
+      const mortsCetteNuit = ctx.jeu.mortsNuit || [];
+  
+      protections.forEach((p) => {
+        const aMarche = mortsCetteNuit.some((m) => m.uid === p.cible);
+  
+        // Message public
+        ctx.envoyerMessagePublic(
+          aMarche
+            ? `👼 L'Ange Gardien a protégé cette nuit, sa protection a MARCHÉ !`
+            : `👼 L'Ange Gardien a protégé cette nuit, sa protection n'a PAS marché.`
+        );
+  
+        ctx.journaliser(
+          `👼 Protection de l'Ange Gardien sur ${p.cible} → ${aMarche ? 'a marché' : 'pas marché'}`
+        );
+      });
+  
+      // Reset
+      ctx.jeu.protectionAngeEnCours = [];
+      return null;
     },
   
     checkWin(ctx) {

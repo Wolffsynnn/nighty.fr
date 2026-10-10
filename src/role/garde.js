@@ -12,8 +12,15 @@ export const Garde = {
     estUnique: true,
     estSecondaire: false,
     description: 'Veille sur le village. Chaque nuit, il protège un joueur ou lui-même des loups, mais jamais 2 fois de suite la même personne.',
-    pouvoir: 'Chaque nuit, protège un joueur de son choix OU lui-même d\'une éventuelle attaque des Loups-Garous.',
-    utilisation: 'Chaque nuit (facultatif). Ne peut pas cibler le même joueur 2 nuits consécutives.',
+    pouvoir: 'Chaque nuit, protège un joueur de son choix OU lui-même d\'une éventuelle attaque des Loups-Garous. Ne peut pas cibler le même joueur 2 nuits consécutives.',
+    utilisation: 'Chaque nuit (facultatif).',
+    reglesSpeciales: [
+      'Protège UNIQUEMENT contre les Loups.',
+      'Peut se protéger lui-même.',
+      'Ne peut pas protéger 2 nuits de suite la même personne.',
+      'Ne peut pas protéger un mort.',
+      'Ne reçoit AUCUN feedback : il ne sait pas si sa protection a servi.',
+    ],
     victoire: 'Village, quand tous les loups et les neutres sont morts.',
   
     // ═══════════ PHASES ═══════════
@@ -28,15 +35,19 @@ export const Garde = {
     onGameStart(ctx) {
       if (!ctx.jeu.garde) ctx.jeu.garde = {};
       ctx.jeu.garde[ctx.moi.uid] = {
-        derniereCible: null,    // UID du dernier joueur protégé
+        derniereCible: null,   // UID du dernier joueur protégé
       };
+  
+      // ✅ NOUVEAU : tableau dédié au Garde
+      if (!ctx.jeu.protectionsGarde) ctx.jeu.protectionsGarde = [];
+  
       return null;
     },
   
     onNightStart(ctx) {
       const data = ctx.jeu.garde?.[ctx.moi.uid] || { derniereCible: null };
   
-      // Récupère la liste des joueurs vivants (sauf la dernière cible)
+      // Cible interdite : le dernier protégé (pas 2 fois de suite)
       const ciblesInterdites = [];
       if (data.derniereCible) {
         ciblesInterdites.push(data.derniereCible);
@@ -46,8 +57,9 @@ export const Garde = {
         doitChoisir: true,
         nombreCibles: 1,
         visiblePar: 'soi',
-        ciblesInterdites,           // Ne peut pas protéger 2 fois de suite
-        // Il peut se choisir lui-même
+        ciblesInterdites: [...ciblesInterdites, 'morts'],
+        facultatif: true,
+        message: '🛡️ Choisis un joueur à protéger des Loups cette nuit (ou passe).',
       };
     },
   
@@ -69,12 +81,16 @@ export const Garde = {
         return { bloque: true };
       }
   
-      // Enregistre la protection
-      if (!ctx.jeu.protections) ctx.jeu.protections = [];
-      // Retire la protection précédente du Garde (s'il y en avait une)
-      ctx.jeu.protections = ctx.jeu.protections.filter(uid => uid !== data.derniereCible);
+      // ✅ CORRIGÉ : tableau dédié au Garde
+      if (!ctx.jeu.protectionsGarde) ctx.jeu.protectionsGarde = [];
+  
+      // Retire l'ancienne protection du Garde (s'il y en avait une)
+      ctx.jeu.protectionsGarde = ctx.jeu.protectionsGarde.filter(
+        uid => uid !== data.derniereCible
+      );
+  
       // Ajoute la nouvelle
-      ctx.jeu.protections.push(cible.uid);
+      ctx.jeu.protectionsGarde.push(cible.uid);
   
       // Met à jour la dernière cible
       data.derniereCible = cible.uid;
@@ -87,7 +103,7 @@ export const Garde = {
       ctx.journaliser(`🛡️ Le Garde ${ctx.moi.pseudo} protège ${cible.pseudo}.`);
   
       return {
-        type: 'protection',
+        type: 'protection-gardien',
         cible: cible.uid,
       };
     },

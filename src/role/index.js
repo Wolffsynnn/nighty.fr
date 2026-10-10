@@ -35,10 +35,14 @@ import { Rodeur } from './rodeur.js';
 import { Marionettiste } from './marionettiste.js';
 
 // ─────────────────────────────────────────────
-// 🎖️ RÔLES SECONDAIRES
+// 💀 RÔLES POST-MORT (attribués au 1er mort)
 // ─────────────────────────────────────────────
 import { AngeGardien } from './ange-gardien.js';
 import { AngeDechu } from './ange-dechu.js';
+
+// ─────────────────────────────────────────────
+// 🎖️ RÔLES ÉLUS (élus ou nommés par le village)
+// ─────────────────────────────────────────────
 import { Maire10 } from './maire-1-0.js';
 import { Maire20 } from './maire-2-0.js';
 import { Adjoint } from './adjoint.js';
@@ -86,11 +90,22 @@ export const ROLES_NIGHTMARES = [
 ];
 
 /**
- * Rôles secondaires (attribués en cours de partie)
+ * Rôles post-mort (attribués automatiquement au 1er mort de la partie)
+ * — Ange Gardien
+ * — Ange Déchu
  */
-export const ROLES_SECONDAIRES = [
+export const ROLES_POST_MORT = [
   AngeGardien,
   AngeDechu,
+];
+
+/**
+ * Rôles élus/nommés (le village vote pour eux, ou ils sont nommés)
+ * — Maire 1.0
+ * — Maire 2.0
+ * — Adjoint (nommé par le Maire 2.0)
+ */
+export const ROLES_ELUS = [
   Maire10,
   Maire20,
   Adjoint,
@@ -103,7 +118,8 @@ export const TOUS_LES_ROLES = [
   ...ROLES_BASE,
   ...ROLES_VARIANTES,
   ...ROLES_NIGHTMARES,
-  ...ROLES_SECONDAIRES,
+  ...ROLES_POST_MORT,
+  ...ROLES_ELUS,
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -146,10 +162,24 @@ export function getRolesMultiples() {
 }
 
 /**
- * Récupère les rôles secondaires
+ * Récupère les rôles post-mort (Anges)
+ */
+export function getRolesPostMort() {
+  return ROLES_POST_MORT;
+}
+
+/**
+ * Récupère les rôles élus (Maire, Adjoint)
+ */
+export function getRolesElus() {
+  return ROLES_ELUS;
+}
+
+/**
+ * Récupère les rôles secondaires (post-mort + élus)
  */
 export function getRolesSecondaires() {
-  return TOUS_LES_ROLES.filter(r => r.estSecondaire === true);
+  return [...ROLES_POST_MORT, ...ROLES_ELUS];
 }
 
 /**
@@ -189,9 +219,11 @@ export {
   Rodeur,
   Marionettiste,
 
-  // Rôles secondaires
+  // Rôles post-mort
   AngeGardien,
   AngeDechu,
+
+  // Rôles élus
   Maire10,
   Maire20,
   Adjoint,

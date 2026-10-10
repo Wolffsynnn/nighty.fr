@@ -14,15 +14,24 @@ export const Cupidon = {
     description: 'La première nuit, unit 2 joueurs par l\'amour. Si l\'un meurt, l\'autre le suit dans la mort.',
     pouvoir: 'La première nuit uniquement, désigne 2 joueurs qui tombent amoureux. Si l\'un des deux meurt, l\'autre meurt immédiatement de chagrin.',
     utilisation: '1 seule fois, la première nuit (obligatoire). Peut se choisir lui-même + un autre.',
-    casSpecial: 'Si les 2 amoureux sont de camps opposés → ils doivent éliminer tous les autres et gagner ensemble.',
-    victoire: 'Village, quand tous les loups et les neutres sont morts (sauf si les 2 amoureux forment un couple mixte → victoire ensemble).',
+    casSpecial: 'Si les 2 amoureux sont de camps opposés → ils deviennent un nouveau camp "couple" et doivent gagner ensemble.',
+    reglesSpeciales: [
+      'Peut se choisir lui-même + un autre joueur.',
+      'Ne peut pas choisir 2 fois le même joueur.',
+      'Les 2 amoureux savent qu\'ils sont en couple dès la nuit 1 (au crépuscule).',
+      'Les 2 amoureux ont un chat privé (bulle ❤️).',
+      'Si un amoureux meurt → l\'autre meurt de chagrin immédiatement.',
+      'Si les 2 amoureux sont de camps OPPOSÉS → ils deviennent camp "couple".',
+      'Si les 2 amoureux sont du MÊME camp → ils gardent leurs camps d\'origine.',
+    ],
+    victoire: 'Village (sauf si camp "couple" → victoire ensemble).',
   
     // ═══════════ PHASES ═══════════
     phases: ['avant-crepuscule'],
-    priorite: 1,       // 1er à jouer la 1ère nuit
+    priorite: 1,   // 1er à jouer la 1ère nuit
   
     // ═══════════ CHATS ═══════════
-    chats: ['public'], // + chat privé avec son amoureux (géré par le moteur)
+    chats: ['public'], // + chat privé ❤️ avec son amoureux (géré par le moteur)
   
     // ═══════════ LOGIQUE ═══════════
   
@@ -38,10 +47,9 @@ export const Cupidon = {
   
       return {
         doitChoisir: true,
-        nombreCibles: 2,               // ⚠️ 2 cibles
+        nombreCibles: 2,
         visiblePar: 'soi',
-        message: '💘 Choisis 2 joueurs qui tomberont amoureux.',
-        // Peut se choisir lui-même
+        message: '💘 Choisis 2 joueurs qui tomberont amoureux (tu peux te choisir toi-même).',
       };
     },
   
@@ -59,6 +67,15 @@ export const Cupidon = {
       const joueur1 = ctx.jeu.joueurs.find(j => j.uid === ctx.cible);
       const joueur2 = ctx.jeu.joueurs.find(j => j.uid === ctx.cible2);
       if (!joueur1 || !joueur2) return null;
+  
+      // ✅ NOUVEAU : détecte si les camps sont opposés
+      const campsOpposes = joueur1.camp !== joueur2.camp;
+  
+      if (campsOpposes) {
+        // Les 2 deviennent un nouveau camp "couple"
+        joueur1.camp = 'couple';
+        joueur2.camp = 'couple';
+      }
   
       // Enregistre les amoureux
       ctx.jeu.amoureux = [joueur1.uid, joueur2.uid];
@@ -79,11 +96,15 @@ export const Cupidon = {
       }
   
       // Ouvre un chat privé entre les 2 amoureux (géré par le moteur)
-      ctx.journaliser(`💘 Cupidon a uni ${joueur1.pseudo} et ${joueur2.pseudo}.`);
+      ctx.journaliser(
+        `💘 Cupidon a uni ${joueur1.pseudo} et ${joueur2.pseudo}` +
+        (campsOpposes ? ' (camps opposés → camp "couple")' : ' (même camp)') + '.'
+      );
   
       return {
         type: 'cupidon',
         amoureux: [joueur1.uid, joueur2.uid],
+        campsOpposes,
       };
     },
   
@@ -119,25 +140,21 @@ export const Cupidon = {
     },
   
     checkWin(ctx) {
-      const amoureux = ctx.jeu.amoureux;
       const vivants = ctx.jeu.joueurs.filter(j => j.vivant);
+      const amoureux = ctx.jeu.amoureux;
   
-      // ─── Cas spécial : les 2 amoureux sont vivants et de camps opposés ───
+      // ─── Cas spécial : les 2 amoureux sont TOUS les 2 vivants ET camp "couple" ───
       if (amoureux && amoureux.length === 2) {
         const j1 = ctx.jeu.joueurs.find(j => j.uid === amoureux[0]);
         const j2 = ctx.jeu.joueurs.find(j => j.uid === amoureux[1]);
   
-        if (j1 && j2 && j1.vivant && j2.vivant) {
-          const campsOpposes = j1.camp !== j2.camp;
-  
-          if (campsOpposes) {
-            // Vérifie s'il ne reste QUE les 2 amoureux vivants
-            if (vivants.length === 2) {
-              return {
-                gagnant: 'couple',
-                amoureux: [j1.uid, j2.uid],
-              };
-            }
+        if (j1 && j2 && j1.vivant && j2.vivant && j1.camp === 'couple' && j2.camp === 'couple') {
+          // Vérifie s'il ne reste QUE les 2 amoureux vivants
+          if (vivants.length === 2) {
+            return {
+              gagnant: 'couple',
+              amoureux: [j1.uid, j2.uid],
+            };
           }
         }
       }

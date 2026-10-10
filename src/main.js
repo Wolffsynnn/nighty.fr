@@ -8,6 +8,7 @@ import {
 } from './game/lancement.js';
 
 import { ecouterTimerPhase } from './game/phases-timer.js';
+import { peutEnvoyerMessage } from './game/chats-regles.js';
 
 // ===== DÉTECTION APPAREIL (vrai mobile vs PC) =====
 const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
@@ -1273,6 +1274,78 @@ function afficherPhase(phase, tour) {
 
   elNom.textContent = NOMS_PHASES[phase] || phase;
   elTour.textContent = `Tour ${tour}`;
+
+  // ✅ Met à jour l'état des chats
+  updateChatInputState();
+}
+
+// ═══════════════════════════════════════════════════════════
+// 💬 ÉTAT DES CHATS (ouvert/fermé selon phase)
+// ═══════════════════════════════════════════════════════════
+
+function reconstruireJeuPourChat(data) {
+  if (!data) return { joueurs: [], phase: 'jour' };
+
+  const rolesJoueurs = data.rolesJoueurs || {};
+  const joueursVivants = data.joueursVivants || [];
+  const joueursMorts = data.joueursMorts || [];
+  const playersPseudo = data.playersPseudo || [];
+  const players = data.players || [];
+
+  const joueurs = Object.entries(rolesJoueurs).map(([uid, roleId]) => {
+    const idx = players.indexOf(uid);
+    const pseudo = playersPseudo[idx] || '?';
+    const vivant = joueursVivants.includes(uid) && !joueursMorts.includes(uid);
+
+    let camp = 'village';
+    if (roleId.startsWith('loup')) camp = 'loups';
+    if (roleId.startsWith('nightmares')) camp = 'nightmares';
+    if (roleId === 'loup-blanc') camp = 'neutre';
+
+    return { uid, role: roleId, camp, vivant, pseudo };
+  });
+
+  return { joueurs, phase: data.phase || 'jour' };
+}
+
+function updateChatInputState() {
+  if (!currentGameData) return;
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) return;
+
+  // Si la partie n'est pas en cours → chat ouvert (lobby)
+  if (currentGameData.enCours !== true) {
+    if (glChatInput) {
+      glChatInput.disabled = false;
+      glChatInput.placeholder = 'Écris un message...';
+    }
+    if (mobileChatInput) {
+      mobileChatInput.disabled = false;
+      mobileChatInput.placeholder = 'Écris un message...';
+    }
+    return;
+  }
+
+  const jeuMini = reconstruireJeuPourChat(currentGameData);
+  const moi = jeuMini.joueurs.find(j => j.uid === user.uid);
+  if (!moi) return;
+
+  const check = peutEnvoyerMessage(jeuMini, moi, 'public');
+  const ouvert = check.ok;
+
+  if (glChatInput) {
+    glChatInput.disabled = !ouvert;
+    glChatInput.placeholder = ouvert
+      ? 'Écris un message...'
+      : `🔒 Chat fermé (${currentGameData.phase})`;
+  }
+  if (mobileChatInput) {
+    mobileChatInput.disabled = !ouvert;
+    mobileChatInput.placeholder = ouvert
+      ? 'Écris un message...'
+      : `🔒 Chat fermé (${currentGameData.phase})`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1496,7 +1569,7 @@ safeOn(cgCreate, 'click', async () => {
 
     watchGame(currentGameId);
     ecouterLeLancement(currentGameId);
-    ecouterLeTimerDePhase(currentGameId);   // ✅ AJOUTÉ
+    ecouterLeTimerDePhase(currentGameId);
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1549,7 +1622,7 @@ async function joinGame(gameId) {
       goToScreen(gameLobbyScreen);
       watchGame(gameId);
       ecouterLeLancement(gameId);
-      ecouterLeTimerDePhase(gameId);   // ✅ AJOUTÉ
+      ecouterLeTimerDePhase(gameId);
       return;
     }
 
@@ -1582,7 +1655,7 @@ async function joinGame(gameId) {
     goToScreen(gameLobbyScreen);
     watchGame(gameId);
     ecouterLeLancement(gameId);
-    ecouterLeTimerDePhase(gameId);   // ✅ AJOUTÉ
+    ecouterLeTimerDePhase(gameId);
 
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1624,6 +1697,9 @@ async function watchGame(gameId) {
 
       onPartieLancee(data);
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
+
+      // ✅ Met à jour l'état du chat
+      updateChatInputState();
       return;
     }
 
@@ -1899,14 +1975,26 @@ async function sendChatMessage() {
   if (!text) return;
   if (!currentGameId) return;
 
-  if (currentGameData?.enCours === true) {
-    showMessage('❌ Le chat est fermé pendant la partie.');
-    glChatInput.value = '';
-    return;
-  }
-
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
+
+  // ✅ Si partie pas lancée → chat ouvert (lobby)
+  if (currentGameData?.enCours === true) {
+    const jeuMini = reconstruireJeuPourChat(currentGameData);
+    const moi = jeuMini.joueurs.find(j => j.uid === user.uid);
+    if (!moi) return;
+
+    const check = peutEnvoyerMessage(jeuMini, moi, 'public');
+    if (!check.ok) {
+      if (check.raison === 'pas-acces') {
+        showMessage('❌ Tu ne peux pas parler ici.');
+      } else {
+        showMessage(`❌ Le chat public est fermé (${check.phaseActuelle}).`);
+      }
+      glChatInput.value = '';
+      return;
+    }
+  }
 
   const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
 
@@ -2122,13 +2210,11 @@ async function leaveGame() {
       lancementUnsubscribe = null;
     }
 
-    // ✅ Coupe l'écoute du timer de phase
     if (phaseTimerUnsubscribe) {
       phaseTimerUnsubscribe();
       phaseTimerUnsubscribe = null;
     }
 
-    // ✅ Reset les classes
     roleRevealDejaVu = false;
     document.body.classList.remove('game-started');
     document.body.classList.remove('phase-jour', 'phase-nuit');
@@ -2498,6 +2584,7 @@ function openMobileChat() {
   document.body.classList.add('chat-open');
   mobileChatOverlay.classList.remove('hidden');
   renderMobileChat();
+  updateChatInputState();
   setTimeout(() => mobileChatInput?.focus(), 100);
 }
 
@@ -2536,14 +2623,26 @@ async function sendMobileChatMessage() {
   if (!text) return;
   if (!currentGameId) return;
 
-  if (currentGameData?.enCours === true) {
-    showMessage('❌ Le chat est fermé pendant la partie.');
-    mobileChatInput.value = '';
-    return;
-  }
-
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
+
+  // ✅ Si partie pas lancée → chat ouvert (lobby)
+  if (currentGameData?.enCours === true) {
+    const jeuMini = reconstruireJeuPourChat(currentGameData);
+    const moi = jeuMini.joueurs.find(j => j.uid === user.uid);
+    if (!moi) return;
+
+    const check = peutEnvoyerMessage(jeuMini, moi, 'public');
+    if (!check.ok) {
+      if (check.raison === 'pas-acces') {
+        showMessage('❌ Tu ne peux pas parler ici.');
+      } else {
+        showMessage(`❌ Le chat public est fermé (${check.phaseActuelle}).`);
+      }
+      mobileChatInput.value = '';
+      return;
+    }
+  }
 
   const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
 

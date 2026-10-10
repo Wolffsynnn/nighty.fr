@@ -1,34 +1,22 @@
 // ═══════════════════════════════════════════════════════════
 // ⏱️ TIMER DES PHASES
 // ═══════════════════════════════════════════════════════════
-//
-// Gère l'avancement automatique des phases.
-//
-// Mécanique :
-//   1. Chaque phase a une durée fixe (DUREES_PHASES)
-//   2. Au lancement : on écrit `phaseStartedAt` + `phaseDuree`
-//   3. Chaque client écoute et calcule le temps restant
-//   4. Quand c'est fini → le premier client qui le voit avance (transaction)
-//   5. Le tour augmente automatiquement après 'soir'
-// ═══════════════════════════════════════════════════════════
 
-import { ORDRE_PHASES, PREMIERE_PHASE, DERNIERE_PHASE } from './phases.js';
+import { prochainePhaseActive, ORDRE_PHASES } from './roles-actifs.js';
 
 // ═══════════════════════════════════════════════════════════
 // ⏱️ DURÉES DES PHASES (en ms)
 // ═══════════════════════════════════════════════════════════
-// ⚠️ Durées courtes pour TESTER. À rallonger plus tard.
-// ═══════════════════════════════════════════════════════════
 
 export const DUREES_PHASES = {
-  'avant-crepuscule': 15 * 1000,   // 15 sec — setup
-  'crepuscule':       20 * 1000,   // 20 sec — voyante, garde
-  'minuit':           25 * 1000,   // 25 sec — loups votent
-  'apres-minuit':     20 * 1000,   // 20 sec — résolutions
-  'aube':             15 * 1000,   // 15 sec — annonce morts
-  'jour':             60 * 1000,   // 60 sec — discussion
-  'vote':             120 * 1000,  // 120 sec — vote (à ajuster)
-  'soir':             20 * 1000,   // 20 sec — résolutions
+  'avant-crepuscule': 15 * 1000,
+  'crepuscule':       20 * 1000,
+  'minuit':           30 * 1000,
+  'apres-minuit':     20 * 1000,
+  'aube':             15 * 1000,
+  'jour':             60 * 1000,
+  'vote':             120 * 1000,
+  'soir':             20 * 1000,
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -50,13 +38,6 @@ async function getFirestoreFns() {
 // 📝 INITIALISER LE TIMER
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Initialise les champs du timer dans Firestore (au lancement de la partie).
- * À appeler une seule fois quand la partie démarre.
- *
- * @param {string} gameId
- * @param {string} phase
- */
 export async function initialiserTimerPhase(gameId, phase) {
   const { doc, updateDoc } = await getFirestoreFns();
 
@@ -67,27 +48,18 @@ export async function initialiserTimerPhase(gameId, phase) {
     phaseDuree: duree,
   });
 
-  console.log(`⏱️ Timer initialisé : ${phase} pour ${duree / 1000} sec.`);
+  console.log(`⏱️ Timer init : ${phase} (${duree / 1000}s)`);
 }
 
 // ═══════════════════════════════════════════════════════════
 // 🎧 ÉCOUTER LE TIMER DE PHASE
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Écoute le doc Firestore et gère l'avancement automatique des phases.
- *
- * @param {string} gameId
- * @param {Object} callbacks
- * @param {Function} callbacks.onTick      - Appelé avec (restantMs, phase, tour)
- * @param {Function} callbacks.onPhaseChange - Appelé avec (nouvellePhase, nouveauTour)
- * @returns {Function} unsubscribe
- */
 export async function ecouterTimerPhase(gameId, callbacks = {}) {
   const { doc, onSnapshot } = await getFirestoreFns();
 
   let timerInterval = null;
-  let dernierTickKey = null;   // Pour ne pas relancer plusieurs fois le timer
+  let dernierTickKey = null;
 
   function stopperTimer() {
     if (timerInterval) {
@@ -106,7 +78,6 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 
       const data = snap.data();
 
-      // ─── Partie pas encore lancée ou finie ───
       if (!data.enCours) {
         stopperTimer();
         return;
@@ -114,10 +85,8 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 
       const { phase, tour, phaseStartedAt, phaseDuree } = data;
 
-      // Si pas de timer configuré → rien à faire
       if (!phaseStartedAt || !phaseDuree) return;
 
-      // Évite de relancer le timer pour le même (phase+tour+start)
       const tickKey = `${phase}-${tour}-${phaseStartedAt}`;
       if (tickKey === dernierTickKey) return;
       dernierTickKey = tickKey;
@@ -129,8 +98,6 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 
         if (restant <= 0) {
           stopperTimer();
-
-          // ✅ Le premier client qui voit la fin avance à la phase suivante
           avancerPhaseSiPossible(gameId);
 
           if (typeof callbacks.onTick === 'function') {
@@ -153,15 +120,9 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ▶️ AVANCER À LA PHASE SUIVANTE (anti-doublon)
+// ▶️ AVANCER À LA PHASE SUIVANTE ACTIVE
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Avance à la phase suivante de manière atomique.
- * Le premier client qui écrit gagne, les autres abandonnent.
- *
- * @param {string} gameId
- */
 export async function avancerPhaseSiPossible(gameId) {
   const { doc, runTransaction } = await getFirestoreFns();
 
@@ -178,27 +139,21 @@ export async function avancerPhaseSiPossible(gameId) {
       const phaseActuelle = data.phase;
       const tourActuel = data.tour || 1;
 
-      // Récupère l'index de la phase actuelle
-      const indexActuel = ORDRE_PHASES.indexOf(phaseActuelle);
-      if (indexActuel === -1) return { ok: false, raison: 'phase-inconnue' };
+      // ─── Reconstruit un mini-objet jeu pour les helpers ───
+      const jeuMini = {
+        joueurs: reconstruireJoueurs(data),
+        roles: data.roles || [],
+      };
 
-      let nouvellePhase;
-      let nouveauTour = tourActuel;
+      // ─── Calcule la prochaine phase active ───
+      const suivant = prochainePhaseActive(jeuMini, phaseActuelle, tourActuel);
 
-      // ─── Fin du cycle (dernière phase) ───
-      if (indexActuel >= ORDRE_PHASES.length - 1) {
-        nouvellePhase = PREMIERE_PHASE;
-        nouveauTour = tourActuel + 1;
-      } else {
-        nouvellePhase = ORDRE_PHASES[indexActuel + 1];
-      }
-
-      const nouvelleDuree = DUREES_PHASES[nouvellePhase] || 30000;
+      const nouvelleDuree = DUREES_PHASES[suivant.phase] || 30000;
 
       transaction.update(gameRef, {
-        phase: nouvellePhase,
-        phaseIndex: ORDRE_PHASES.indexOf(nouvellePhase),
-        tour: nouveauTour,
+        phase: suivant.phase,
+        phaseIndex: ORDRE_PHASES.indexOf(suivant.phase),
+        tour: suivant.tour,
         phaseStartedAt: Date.now(),
         phaseDuree: nouvelleDuree,
       });
@@ -206,21 +161,39 @@ export async function avancerPhaseSiPossible(gameId) {
       return {
         ok: true,
         anciennePhase: phaseActuelle,
-        nouvellePhase,
-        nouveauTour,
+        nouvellePhase: suivant.phase,
+        nouveauTour: suivant.tour,
       };
     });
 
     if (resultat.ok) {
-      console.log(`▶️ Phase avancée : ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
+      console.log(`▶️ ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
     }
 
     return resultat;
 
   } catch (err) {
-    console.log('⏸️ Transaction perdue (un autre client a avancé).');
+    console.log('⏸️ Transaction perdue.');
     return { ok: false, raison: 'transaction-perdue', err };
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔧 UTILITAIRE : reconstruire les joueurs depuis Firestore
+// ═══════════════════════════════════════════════════════════
+
+function reconstruireJoueurs(data) {
+  const joueurs = [];
+  const rolesJoueurs = data.rolesJoueurs || {};
+  const joueursVivants = data.joueursVivants || [];
+  const joueursMorts = data.joueursMorts || [];
+
+  Object.entries(rolesJoueurs).forEach(([uid, roleId]) => {
+    const vivant = joueursVivants.includes(uid) && !joueursMorts.includes(uid);
+    joueurs.push({ uid, role: roleId, vivant });
+  });
+
+  return joueurs;
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -57,6 +57,14 @@
       max-width: 100%;
       height: auto;
     }
+
+    /* ===== FIX FOND : lobby de partie ===== */
+    #game-lobby-screen .bg-layer {
+      background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+    }
   </style>
 </head>
 <body>
@@ -296,8 +304,8 @@
   </div>
 
   <!-- ===== ÉCRAN 8 : LOBBY DE PARTIE ===== -->
-<div id="game-lobby-screen" class="screen hidden">
-  <div class="bg-layer" style="background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png');"></div>
+  <div id="game-lobby-screen" class="screen hidden">
+    <div class="bg-layer"></div>
 
     <button id="btn-back-game-lobby" class="back-btn" aria-label="Quitter">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

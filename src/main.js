@@ -1403,9 +1403,6 @@ const ROLES_ACTION = {
   },
 };
 
-/**
- * Active le mode "sélection" (le joueur peut cliquer sur les persos)
- */
 function activerSelectionCible() {
   if (!currentGameData) return;
   if (currentGameData.enCours !== true) return;
@@ -1421,13 +1418,11 @@ function activerSelectionCible() {
 
   const config = ROLES_ACTION[phase]?.[monRole];
 
-  // Pas concerné → désactive
   if (!config || !vivant) {
     desactiverSelectionCible();
     return;
   }
 
-  // Déjà envoyé → ne pas réactiver
   const phaseKey = `${phase}-${tour}`;
   if (actionPhaseKey === phaseKey && actionDejaEnvoyee) return;
 
@@ -1436,13 +1431,10 @@ function activerSelectionCible() {
     actionDejaEnvoyee = false;
   }
 
-  // ✅ Active le mode sélection
   document.body.classList.add('mode-selection');
 
-  // ✅ Affiche un bandeau d'info
   showMessage(`${config.emoji} À toi ! ${config.titre}`);
 
-  // ✅ Prépare les slots cliquables
   preparerSlotsCliquables(monRole);
 }
 
@@ -1456,19 +1448,14 @@ function preparerSlotsCliquables(monRole) {
   if (!user) return;
 
   slots.forEach(slot => {
-    // ✅ Ajoute les data-uid/pseudo si pas déjà là
     const uid = slot.dataset.uid;
     if (!uid) return;
 
-    // Retire les anciens listeners en clonant
     const newSlot = slot.cloneNode(true);
     slot.parentNode.replaceChild(newSlot, slot);
 
     newSlot.addEventListener('click', () => {
-      // Vérifie qu'on est en mode sélection
       if (!document.body.classList.contains('mode-selection')) return;
-
-      // Interdit de se cibler soi-même
       if (uid === user.uid) return;
 
       const pseudo = newSlot.dataset.pseudo || '?';
@@ -1501,6 +1488,16 @@ async function envoyerAction(cibleUid, ciblePseudo) {
     });
 
     desactiverSelectionCible();
+
+    // ✅ AFFICHAGE IMMÉDIAT selon le rôle
+    const monRole = currentGameData.rolesJoueurs?.[user.uid];
+
+    // ─── VOYANTE / VOYANTE BAVARDE : voit le rôle direct ───
+    if (monRole === 'voyante' || monRole === 'voyante-bavarde') {
+      const roleVu = currentGameData.rolesJoueurs?.[cibleUid];
+      showVoyanceCard(ciblePseudo, roleVu);
+    }
+
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
     actionDejaEnvoyee = false;
@@ -1861,7 +1858,6 @@ async function watchGame(gameId) {
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
       updateChatInputState();
 
-      // ✅ Active la sélection si c'est mon tour
       activerSelectionCible();
       return;
     }
@@ -2022,7 +2018,6 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
 
     const occupant = slotOccupants[i];
 
-    // ✅ Ajoute data-uid / data-pseudo pour la sélection
     if (occupant) {
       slot.dataset.uid = occupant.uid;
       slot.dataset.pseudo = occupant.pseudo;
@@ -2053,7 +2048,6 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
     }
 
     slot.addEventListener('click', () => {
-      // Si on est en mode sélection → c'est pour cibler
       if (document.body.classList.contains('mode-selection')) {
         if (!occupant) return;
         if (occupant.uid === currentUid) return;
@@ -2061,7 +2055,6 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
         return;
       }
 
-      // Sinon → déplacement de perso (lobby seulement)
       if (occupant && occupant.uid === currentUid) return;
       moveMyCharacterToSlot(i);
     });
@@ -2145,13 +2138,19 @@ function renderChat(messages) {
     return true;
   });
 
-  // ✅ Si un message "voyance" m'est destiné → affiche la carte
-  messagesFiltres.forEach(m => {
-    if (m.voyance && m.pour === user.uid && !m._voyanceAffichee) {
-      m._voyanceAffichee = true;
-      showVoyanceCard(m.ciblePseudo, m.roleId);
-    }
-  });
+  glChatMessages.innerHTML = messagesFiltres.map(m => {
+    const classes = m.systeme ? 'gl-chat-msg gl-chat-msg-systeme' : 'gl-chat-msg';
+    const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
+    return `
+      <div class="${classes}">
+        ${auteur}${m.text}
+      </div>
+    `;
+  }).join('');
+
+  if (wasAtBottom) {
+    glChatMessages.scrollTop = glChatMessages.scrollHeight;
+  }
 }
 
 async function sendChatMessage() {

@@ -1347,58 +1347,57 @@ function updateChatInputState() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🎯 MODAL D'ACTION (rôles de nuit)
+// 🎯 SÉLECTION DIRECTE (au lieu du modal)
 // ═══════════════════════════════════════════════════════════
-
-const actionModal        = document.getElementById('action-modal');
-const actionModalRole    = document.getElementById('action-modal-role');
-const actionModalTitle   = document.getElementById('action-modal-title');
-const actionModalDesc    = document.getElementById('action-modal-desc');
-const actionModalTargets = document.getElementById('action-modal-targets');
-const actionModalSkip    = document.getElementById('action-modal-skip');
 
 let actionDejaEnvoyee = false;
 let actionPhaseKey = null;
 
+// Quels rôles agissent dans quelle phase
 const ROLES_ACTION = {
   'crepuscule': {
-    'voyante':         { titre: 'Choisis qui sonder',     desc: 'Tu découvriras son rôle.',                peutPasser: true },
-    'voyante-bavarde': { titre: 'Choisis qui sonder',     desc: 'Le village apprendra son rôle au matin.', peutPasser: true },
-    'garde':           { titre: 'Choisis qui protéger',   desc: 'Il sera protégé des loups cette nuit.',   peutPasser: true },
+    'voyante':         { titre: 'Choisis qui sonder',     emoji: '🔮' },
+    'voyante-bavarde': { titre: 'Choisis qui sonder',     emoji: '🔮' },
+    'garde':           { titre: 'Choisis qui protéger',   emoji: '🛡️' },
   },
   'minuit': {
-    'loup-garou':  { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
-    'loup-noir':   { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
-    'loup-bavard': { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
-    'loup-blanc':  { titre: 'Choisis qui dévorer',    desc: 'Vote avec ta meute.',                peutPasser: false },
-    'nightmares-original': { titre: 'Choisis qui marquer', desc: 'Il mourra au tour suivant.',    peutPasser: false },
-    'rodeur':      { titre: 'Choisis qui roder',      desc: 'Rode 2 nuits autour de lui.',        peutPasser: false },
+    'loup-garou':  { titre: 'Choisis qui dévorer',  emoji: '🐺' },
+    'loup-noir':   { titre: 'Choisis qui dévorer',  emoji: '🐺' },
+    'loup-bavard': { titre: 'Choisis qui dévorer',  emoji: '🐺' },
+    'loup-blanc':  { titre: 'Choisis qui dévorer',  emoji: '🐺' },
+    'nightmares-original': { titre: 'Choisis qui marquer', emoji: '🌑' },
+    'rodeur':      { titre: 'Choisis qui roder',    emoji: '🌫️' },
   },
   'apres-minuit': {
-    'sorciere': { titre: 'Utilise une potion', desc: '1 potion par nuit.', peutPasser: true },
+    'sorciere': { titre: 'Choisis une cible pour ta potion', emoji: '🧪' },
   },
 };
 
-function ouvrirActionModal() {
+/**
+ * Active le mode "sélection" (le joueur peut cliquer sur les persos)
+ */
+function activerSelectionCible() {
   if (!currentGameData) return;
   if (currentGameData.enCours !== true) return;
 
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  const phase = currentGameData.phase;
-  const tour  = currentGameData.tour;
+  const phase   = currentGameData.phase;
+  const tour    = currentGameData.tour;
   const monRole = currentGameData.rolesJoueurs?.[user.uid];
   const vivants = currentGameData.joueursVivants || [];
-  const vivant = vivants.includes(user.uid);
+  const vivant  = vivants.includes(user.uid);
 
   const config = ROLES_ACTION[phase]?.[monRole];
 
+  // Pas concerné → désactive
   if (!config || !vivant) {
-    fermerActionModal();
+    desactiverSelectionCible();
     return;
   }
 
+  // Déjà envoyé → ne pas réactiver
   const phaseKey = `${phase}-${tour}`;
   if (actionPhaseKey === phaseKey && actionDejaEnvoyee) return;
 
@@ -1407,49 +1406,43 @@ function ouvrirActionModal() {
     actionDejaEnvoyee = false;
   }
 
-  actionModalRole.textContent = getRoleById(monRole)?.nom || monRole;
-  actionModalTitle.textContent = config.titre;
-  actionModalDesc.textContent = config.desc;
-  actionModalSkip.classList.toggle('hidden', !config.peutPasser);
+  // ✅ Active le mode sélection
+  document.body.classList.add('mode-selection');
 
-  rendreCibles(monRole);
-  actionModal.classList.remove('hidden');
+  // ✅ Affiche un bandeau d'info
+  showMessage(`${config.emoji} À toi ! ${config.titre}`);
+
+  // ✅ Prépare les slots cliquables
+  preparerSlotsCliquables(monRole);
 }
 
-function rendreCibles(monRole) {
-  if (!actionModalTargets) return;
+function desactiverSelectionCible() {
+  document.body.classList.remove('mode-selection');
+}
 
+function preparerSlotsCliquables(monRole) {
+  const slots = document.querySelectorAll('.gl-slot');
   const user = window.firebaseAuth?.currentUser;
   if (!user) return;
 
-  const players = currentGameData.players || [];
-  const pseudos = currentGameData.playersPseudo || [];
-  const vivants = currentGameData.joueursVivants || [];
+  slots.forEach(slot => {
+    // ✅ Ajoute les data-uid/pseudo si pas déjà là
+    const uid = slot.dataset.uid;
+    if (!uid) return;
 
-  const cibles = [];
-  players.forEach((uid, i) => {
-    if (!vivants.includes(uid)) return;
-    if (uid === user.uid && ['voyante', 'voyante-bavarde'].includes(monRole)) return;
-    cibles.push({ uid, pseudo: pseudos[i] });
-  });
+    // Retire les anciens listeners en clonant
+    const newSlot = slot.cloneNode(true);
+    slot.parentNode.replaceChild(newSlot, slot);
 
-  if (cibles.length === 0) {
-    actionModalTargets.innerHTML = '<p class="friends-empty">Aucune cible.</p>';
-    return;
-  }
+    newSlot.addEventListener('click', () => {
+      // Vérifie qu'on est en mode sélection
+      if (!document.body.classList.contains('mode-selection')) return;
 
-  const IMG = 'https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png';
+      // Interdit de se cibler soi-même
+      if (uid === user.uid) return;
 
-  actionModalTargets.innerHTML = cibles.map(c => `
-    <button class="action-cible" data-uid="${c.uid}" data-pseudo="${c.pseudo}">
-      <img src="${IMG}" alt="${c.pseudo}" />
-      <span class="action-cible-pseudo">${c.pseudo}</span>
-    </button>
-  `).join('');
-
-  actionModalTargets.querySelectorAll('.action-cible').forEach(btn => {
-    btn.addEventListener('click', () => {
-      envoyerAction(btn.dataset.uid, btn.dataset.pseudo);
+      const pseudo = newSlot.dataset.pseudo || '?';
+      envoyerAction(uid, pseudo);
     });
   });
 }
@@ -1477,49 +1470,13 @@ async function envoyerAction(cibleUid, ciblePseudo) {
       at: Date.now(),
     });
 
-    showMessage(`✅ Action envoyée sur ${ciblePseudo}`);
-    fermerActionModal();
+    showMessage(`✅ Cible : ${ciblePseudo}`);
+    desactiverSelectionCible();
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
     actionDejaEnvoyee = false;
   }
 }
-
-async function passerAction() {
-  if (actionDejaEnvoyee) return;
-  if (!currentGameId) return;
-
-  const user = window.firebaseAuth?.currentUser;
-  if (!user) return;
-
-  actionDejaEnvoyee = true;
-
-  const { collection, addDoc } = await getFirestoreFns();
-
-  try {
-    await addDoc(collection(window.firebaseDB, 'games', currentGameId, 'actions'), {
-      uid: user.uid,
-      pseudo: user.displayName,
-      type: 'passer',
-      tour: currentGameData.tour,
-      phase: currentGameData.phase,
-      at: Date.now(),
-    });
-
-    showMessage('⏭️ Passé');
-    fermerActionModal();
-  } catch (err) {
-    showMessage('❌ ' + (err.code || err.message));
-    actionDejaEnvoyee = false;
-  }
-}
-
-function fermerActionModal() {
-  if (actionModal) actionModal.classList.add('hidden');
-  if (actionModalTargets) actionModalTargets.innerHTML = '';
-}
-
-safeOn(actionModalSkip, 'click', passerAction);
 
 // ═══════════════════════════════════════════════════════════
 // 🚀 ÉCOUTE DU LANCEMENT AUTOMATIQUE
@@ -1596,7 +1553,7 @@ function ecouterLeTimerDePhase(gameId) {
       console.log(`🎬 Nouvelle phase : ${nouvellePhase} (Tour ${nouveauTour})`);
       actionDejaEnvoyee = false;
       actionPhaseKey = null;
-      fermerActionModal();
+      desactiverSelectionCible();
     },
   }).then(unsub => {
     phaseTimerUnsubscribe = unsub;
@@ -1875,8 +1832,8 @@ async function watchGame(gameId) {
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
       updateChatInputState();
 
-      // ✅ Vérifie si c'est mon tour de jouer
-      ouvrirActionModal();
+      // ✅ Active la sélection si c'est mon tour
+      activerSelectionCible();
       return;
     }
 
@@ -2036,6 +1993,12 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
 
     const occupant = slotOccupants[i];
 
+    // ✅ Ajoute data-uid / data-pseudo pour la sélection
+    if (occupant) {
+      slot.dataset.uid = occupant.uid;
+      slot.dataset.pseudo = occupant.pseudo;
+    }
+
     if (occupant) {
       const isMe = occupant.uid === currentUid;
       const isHost = occupant.uid === hostUid;
@@ -2061,6 +2024,15 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
     }
 
     slot.addEventListener('click', () => {
+      // Si on est en mode sélection → c'est pour cibler
+      if (document.body.classList.contains('mode-selection')) {
+        if (!occupant) return;
+        if (occupant.uid === currentUid) return;
+        envoyerAction(occupant.uid, occupant.pseudo);
+        return;
+      }
+
+      // Sinon → déplacement de perso (lobby seulement)
       if (occupant && occupant.uid === currentUid) return;
       moveMyCharacterToSlot(i);
     });
@@ -2139,7 +2111,6 @@ function renderChat(messages) {
   const wasAtBottom =
     glChatMessages.scrollHeight - glChatMessages.scrollTop - glChatMessages.clientHeight < 40;
 
-  // ✅ Filtre : garde les messages publics + ceux qui me sont destinés
   const messagesFiltres = messages.filter(m => {
     if (m.pour) return m.pour === user.uid;
     return true;
@@ -2404,7 +2375,7 @@ async function leaveGame() {
       phaseTimerUnsubscribe = null;
     }
 
-    fermerActionModal();
+    desactiverSelectionCible();
     actionDejaEnvoyee = false;
     actionPhaseKey = null;
 

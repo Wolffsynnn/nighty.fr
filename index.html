@@ -7,26 +7,37 @@
   <link rel="icon" type="image/png" href="https://i.imgur.com/sfeVfWf.png" />
   <link rel="stylesheet" href="src/style.css" />
 
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js';
-    import { getAuth } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
-    import { getFirestore } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
+  <script>
+    // ===== DÉTECTION APPAREIL — AVANT TOUT =====
+    (function () {
+      const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
+                     || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
+      document.addEventListener('DOMContentLoaded', function () {
+        document.body.classList.add(IS_MOBILE ? 'is-mobile' : 'is-desktop');
+        console.log('[Device]', IS_MOBILE ? '📱 MOBILE' : '🖥️ DESKTOP');
+      });
+    })();
 
-    const firebaseConfig = {
-      apiKey: 'AIzaSyBdl5zBIrxrq480GMiKFyKpfrBhZmIAA30',
-      authDomain: 'nighty-edabe.firebaseapp.com',
-      projectId: 'nighty-edabe',
-      storageBucket: 'nighty-edabe.firebasestorage.app',
-      messagingSenderId: '820765487440',
-      appId: '1:820765487440:web:461927282f4e0b4b0f7c55',
-    };
+    // ===== FIREBASE =====
+    window.addEventListener('DOMContentLoaded', async function () {
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js');
+      const { getAuth } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js');
+      const { getFirestore } = await import('https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js');
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    window.firebaseAuth = auth;
-    window.firebaseDB = db;
-    console.log('✅ Firebase initialisé');
+      const firebaseConfig = {
+        apiKey: 'AIzaSyBdl5zBIrxrq480GMiKFyKpfrBhZmIAA30',
+        authDomain: 'nighty-edabe.firebaseapp.com',
+        projectId: 'nighty-edabe',
+        storageBucket: 'nighty-edabe.firebasestorage.app',
+        messagingSenderId: '820765487440',
+        appId: '1:820765487440:web:461927282f4e0b4b0f7c55',
+      };
+
+      const app = initializeApp(firebaseConfig);
+      window.firebaseAuth = getAuth(app);
+      window.firebaseDB = getFirestore(app);
+      console.log('✅ Firebase initialisé');
+    });
   </script>
 </head>
 <body>
@@ -160,7 +171,6 @@
           </button>
         </div>
 
-        <!-- Onglets Public / Privé -->
         <div class="games-tabs">
           <button class="games-tab active" data-games-tab="public">🌐 Publiques</button>
           <button class="games-tab" data-games-tab="private">🔒 Privées</button>
@@ -274,11 +284,14 @@
 
     <div class="game-lobby-topbar">
       <span id="gl-village-name">Village</span>
-      <span id="gl-players-count">👥 0/0</span>
+      <div class="gl-players-ctrl">
+        <button id="btn-minus-players" class="gl-ctrl-btn" title="-1 joueur">−</button>
+        <span id="gl-players-count">👥 0/0</span>
+        <button id="btn-plus-players" class="gl-ctrl-btn" title="+1 joueur">+</button>
+      </div>
       <button id="btn-composition" class="gl-btn">⚙️ Composition</button>
     </div>
 
-    <!-- Bandeau code/lien (affiché en haut, conditionnel) -->
     <div id="gl-share-bar" class="gl-share-bar hidden">
       <div class="gl-share-item hidden" id="gl-share-code-wrapper">
         <span class="gl-share-label">🔑 Code :</span>
@@ -390,19 +403,16 @@
   <div id="composition-popup" class="popup-overlay hidden">
     <div class="composition-box">
 
-      <!-- Header -->
       <div class="composition-header">
         <span class="comp-badge">⏳ En attente</span>
         <span class="comp-count"><span id="comp-count-current">0</span> / <span id="comp-count-max">8</span></span>
         <button id="comp-close" class="comp-close" title="Fermer">✖</button>
       </div>
 
-      <!-- Rôles sélectionnés (bandeau haut) -->
       <div class="composition-selected" id="comp-selected">
         <p class="comp-empty-selected">Aucun rôle sélectionné pour le moment.</p>
       </div>
 
-      <!-- Liste des rôles -->
       <div class="composition-scroll">
         <h3 class="comp-section-title">Rôles de base</h3>
         <div class="composition-grid" id="comp-grid-base"></div>
@@ -445,7 +455,6 @@
         </div>
       </div>
 
-      <!-- Footer -->
       <div class="composition-footer">
         <button id="comp-validate" class="comp-validate">✅ Valider la composition</button>
       </div>

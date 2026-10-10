@@ -1,3 +1,13 @@
+// ===== DÉTECTION APPAREIL (vrai mobile vs PC) =====
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
+               || (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
+
+if (IS_MOBILE) {
+  document.body.classList.add('is-mobile');
+} else {
+  document.body.classList.add('is-desktop');
+}
+
 // ===== DEBUG VISUEL =====
 window.onerror = function (msg) {
   const el = document.getElementById('debug-message');
@@ -32,7 +42,6 @@ function safeOn(el, event, cb) {
 
 let blockAutoRedirect = false;
 
-// ⬇️⬇️⬇️ DÉCLARÉ EN HAUT (fix du bug "before initialization")
 let choixAnge = 'none';
 let choixMaire = 'none';
 let choixAdjoint = 'non';
@@ -56,7 +65,7 @@ const gamesTabs       = document.querySelectorAll('.games-tab');
 let currentGamesTab   = 'public';
 
 // ═══════════════════════════════════════════════════════════
-// 📚 RÔLES (intégrés directement, pas de fichier externe)
+// 📚 RÔLES
 // ═══════════════════════════════════════════════════════════
 const ROLES_BASE = [
   { id: 'simple-villageois', nom: 'Simple Villageois', emoji: '🧑‍🌾', camp: 'village', estUnique: false, description: 'Habitant sans pouvoir. Vote le jour pour démasquer les loups.' },
@@ -87,7 +96,7 @@ const ROLES_NIGHTMARES = [
 ];
 
 // ═══════════════════════════════════════════════════════════
-// 📋 COMPOSITIONS PRÉDÉFINIES (5 à 16 joueurs)
+// 📋 COMPOSITIONS PRÉDÉFINIES
 // ═══════════════════════════════════════════════════════════
 const COMPOS_PREDEFINIES = {
   5:  ['loup-garou', 'voyante', 'simple-villageois', 'simple-villageois', 'simple-villageois'],
@@ -1127,11 +1136,20 @@ let currentGameData = null;
 let gameUnsubscribe = null;
 let currentPlayerSlots = {};
 
-const POSITIONS_16 = [
+// ─── Positions pour PC (ancien système en arc) ───
+const POSITIONS_16_PC = [
   { x: 22, y: 81 }, { x: 30, y: 78 }, { x: 38, y: 76 }, { x: 46, y: 75 },
   { x: 54, y: 75 }, { x: 62, y: 76 }, { x: 70, y: 78 }, { x: 78, y: 81 },
   { x: 18, y: 103 }, { x: 27, y: 99 }, { x: 36, y: 97 }, { x: 45, y: 96 },
   { x: 55, y: 96 }, { x: 64, y: 97 }, { x: 73, y: 99 }, { x: 82, y: 103 },
+];
+
+// ─── Positions pour MOBILE (4 rangées décalées) ───
+const POSITIONS_16_MOBILE = [
+  { x: 5,  y: 45 }, { x: 15, y: 45 }, { x: 25, y: 45 }, { x: 35, y: 45 },
+  { x: 10, y: 58 }, { x: 20, y: 58 }, { x: 30, y: 58 }, { x: 40, y: 58 },
+  { x: 5,  y: 71 }, { x: 15, y: 71 }, { x: 25, y: 71 }, { x: 35, y: 71 },
+  { x: 10, y: 84 }, { x: 20, y: 84 }, { x: 30, y: 84 }, { x: 40, y: 84 },
 ];
 
 safeOn(cgType, 'change', () => {
@@ -1264,6 +1282,7 @@ safeOn(cgCreate, 'click', async () => {
       messages: [],
       composition: [],
       compositionValidee: false,
+      positionsSeed: Math.floor(Math.random() * 100000),
     });
 
     currentGameId = gameRef.id;
@@ -1498,6 +1517,13 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
 
   const CHARACTER_IMG = 'https://i.postimg.cc/1z7KrFfP/images-4-removebg-preview.png';
 
+  // ✅ CORRECTION : utilise la classe sur <body> posée au tout début du fichier
+  const isMobile = document.body.classList.contains('is-mobile');
+  const positionsBase = isMobile ? POSITIONS_16_MOBILE : POSITIONS_16_PC;
+
+  const seed = currentGameData?.positionsSeed || 0;
+  const positionsMelangees = melangerAvecSeed([...positionsBase], seed);
+
   const slotOccupants = {};
   playersData.forEach((p) => {
     const idx = playerSlots[p.uid];
@@ -1507,7 +1533,7 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
   const hostUid = currentGameData?.hostId;
 
   for (let i = 0; i < maxPlayers; i++) {
-    const pos = POSITIONS_16[i];
+    const pos = positionsMelangees[i];
     if (!pos) continue;
 
     const slot = document.createElement('div');
@@ -1548,6 +1574,23 @@ function updatePlayersSlots(maxPlayers, playersData, playerSlots) {
 
     slotsContainer.appendChild(slot);
   }
+}
+
+function melangerAvecSeed(array, seed) {
+  const copie = [...array];
+  let s = seed || 1;
+
+  function random() {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  }
+
+  for (let i = copie.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [copie[i], copie[j]] = [copie[j], copie[i]];
+  }
+
+  return copie;
 }
 
 async function moveMyCharacterToSlot(targetSlotIndex) {
@@ -1865,7 +1908,6 @@ safeOn(btnComposition, 'click', () => {
     return;
   }
 
-  // Si pas encore de compo → charge la compo prédéfinie
   if (!currentGameData.composition || currentGameData.composition.length === 0) {
     const preset = COMPOS_PREDEFINIES[currentGameData.maxPlayers] || [];
     compositionLocale = [...preset];
@@ -1873,7 +1915,6 @@ safeOn(btnComposition, 'click', () => {
     compositionLocale = currentGameData.composition;
   }
 
-  // Recharge les rôles secondaires
   const sec = currentGameData.secondaires || {};
   choixAnge = sec.ange || 'none';
   choixMaire = sec.maire || 'none';
@@ -1907,7 +1948,6 @@ safeOn(compClose, 'click', () => {
 });
 
 function renderCompositionPopup() {
-  const compCountPlayers = document.getElementById('comp-count-players');
   const max = currentGameData?.maxPlayers || 8;
 
   if (compCountCurrent) compCountCurrent.textContent = compositionLocale.length;
@@ -1984,23 +2024,18 @@ async function ajouterRoleAComposition(roleId) {
   const role = getRoleById(roleId);
   if (!role) return;
 
-  // Vérifie la limite MAX 16
   if (compositionLocale.length >= 16) {
     showMessage('❌ Maximum 16 joueurs.');
     return;
   }
 
-  // Vérifie si unique et déjà pris
   if (role.estUnique && compositionLocale.includes(roleId)) {
     showMessage(`❌ ${role.nom} est unique, tu ne peux pas l'ajouter 2 fois.`);
     return;
   }
 
   compositionLocale.push(roleId);
-
-  // Met à jour maxPlayers = composition.length
   await majMaxPlayers(compositionLocale.length);
-
   renderCompositionPopup();
 }
 
@@ -2010,13 +2045,11 @@ async function retirerRoleDeComposition(roleId) {
 
   const nouvelleTaille = compositionLocale.length - 1;
 
-  // Vérifie le minimum 5
   if (nouvelleTaille < 5) {
     showMessage('❌ Minimum 5 joueurs.');
     return;
   }
 
-  // ⚠️ Vérifie qu'on ne descend pas sous le nombre de joueurs présents
   const joueursActuels = currentGameData?.players?.length || 1;
   if (nouvelleTaille < joueursActuels) {
     showMessage(`❌ Impossible de retirer : il y a déjà ${joueursActuels} joueur(s) dans la partie.`);
@@ -2024,10 +2057,7 @@ async function retirerRoleDeComposition(roleId) {
   }
 
   compositionLocale.splice(index, 1);
-
-  // Met à jour maxPlayers = composition.length
   await majMaxPlayers(compositionLocale.length);
-
   renderCompositionPopup();
 }
 
@@ -2040,7 +2070,7 @@ async function majMaxPlayers(nouveauMax) {
     await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
       maxPlayers: nouveauMax,
       composition: compositionLocale,
-      compositionValidee: false,   // invalide tant qu'on n'a pas re-validé
+      compositionValidee: false,
     });
   } catch (err) {
     console.warn('Erreur majMaxPlayers:', err);

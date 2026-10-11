@@ -1943,6 +1943,7 @@ async function watchGame(gameId) {
 }
 
 function renderGameLobby(data) {
+  document.body.classList.add('phase-jour');
   if (glVillageName) glVillageName.textContent = data.villageName || 'Village';
   if (glPlayersCount) glPlayersCount.textContent = `👥 ${data.players.length}/${data.maxPlayers}`;
 

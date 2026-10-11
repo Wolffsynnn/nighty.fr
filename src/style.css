@@ -37,7 +37,7 @@ body {
 .bg-layer {
   position: absolute;
   inset: 0;
-  background-image: url('https://i.postimg.cc/05YRxSk3/a4ad4234-798b-4de4-b889-2c2ff4f83a23.png') !important;
+  background-image: url('https://i.postimg.cc/05YRxSk3/a4ad4234-798b-4de4-b889-2c2ff4f83a23.png') ;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -2577,6 +2577,7 @@ body.phase-jour #game-lobby-screen .bg-layer {
   background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat !important;
 }
 
 body.phase-nuit #game-lobby-screen .bg-layer {
@@ -2598,8 +2599,11 @@ body.is-mobile.phase-nuit #game-lobby-screen .bg-layer {
   background-position: center top;
 }
 
-/* ───── Transition douce entre jour et nuit ───── */
+/* ───── Fond par défaut du lobby de partie (si pas de phase active) ───── */
 #game-lobby-screen .bg-layer {
+  background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
+  background-size: cover;
+  background-position: center;
   transition: background-image 0.8s ease-in-out;
 }
 

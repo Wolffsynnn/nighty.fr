@@ -1285,9 +1285,10 @@ const NOMS_PHASES = {
   'crepuscule':       'Crépuscule',
   'minuit':           'Minuit',
   'apres-minuit':     'Après-Minuit',
+  'nuit':             'Nuit',
   'aube':             'Aube',
-  'jour':             'Jour',
-  'vote':             'Vote du Village',
+  'vote-maire':       'Vote du Maire',
+  'vote-village':     'Vote du Village',
   'soir':             'Soir',
 };
 
@@ -1296,7 +1297,7 @@ function afficherPhase(phase, tour) {
   const elNom = document.getElementById('phase-nom');
   const elTour = document.getElementById('phase-tour');
 
-  const phasesNuit = ['avant-crepuscule', 'crepuscule', 'minuit', 'apres-minuit'];
+  const phasesNuit = ['avant-crepuscule', 'crepuscule', 'minuit', 'apres-minuit', 'nuit'];
   const estNuit = phasesNuit.includes(phase);
 
   document.body.classList.remove('phase-jour', 'phase-nuit');
@@ -1375,7 +1376,7 @@ function updateInfoVoyanceCard(phase) {
 // ═══════════════════════════════════════════════════════════
 
 function reconstruireJeuPourChat(data) {
-  if (!data) return { joueurs: [], phase: 'jour' };
+  if (!data) return { joueurs: [], phase: 'vote-village' };
 
   const rolesJoueurs = data.rolesJoueurs || {};
   const joueursVivants = data.joueursVivants || [];
@@ -1396,7 +1397,7 @@ function reconstruireJeuPourChat(data) {
     return { uid, role: roleId, camp, vivant, pseudo };
   });
 
-  return { joueurs, phase: data.phase || 'jour' };
+  return { joueurs, phase: data.phase || 'vote-village' };
 }
 
 function updateChatInputState() {
@@ -1538,7 +1539,7 @@ const ROLES_ACTION = {
     'nightmares-original': { titre: 'Choisis qui marquer', emoji: '🌑' },
     'rodeur':      { titre: 'Choisis qui roder',    emoji: '🌫️' },
   },
-  'apres-minuit': {
+  'nuit': {
     'sorciere': { titre: 'Choisis une cible pour ta potion', emoji: '🧪' },
   },
 };
@@ -1635,7 +1636,6 @@ async function envoyerAction(cibleUid, ciblePseudo) {
       const roleVu = currentGameData.rolesJoueurs?.[cibleUid];
       showVoyanceCard(ciblePseudo, roleVu);
     }
-
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
     actionDejaEnvoyee = false;
@@ -1879,13 +1879,11 @@ function checkGameLink() {
   const params = new URLSearchParams(window.location.search);
   const urlGameId = params.get('game');
 
-  // Pas de paramètre → on nettoie tout et on sort (évite le reload → auto-rejoin)
   if (!urlGameId) {
     sessionStorage.removeItem('pendingGameId');
     return;
   }
 
-  // Nettoie l'URL immédiatement
   window.history.replaceState({}, '', window.location.pathname);
 
   const user = window.firebaseAuth?.currentUser;
@@ -2024,7 +2022,6 @@ function renderGameLobby(data) {
 
   if (typeof majBoutonsMaxPlayers === 'function') majBoutonsMaxPlayers();
 
-  // ✅ Affiche/cache le bouton compo
   updateBtnVoirCompoVisibility();
 }
 
@@ -2550,7 +2547,6 @@ async function leaveGame() {
     document.body.classList.remove('game-started');
     document.body.classList.remove('phase-jour', 'phase-nuit');
 
-    // ✅ Cache le bouton compo
     if (btnVoirCompo) btnVoirCompo.classList.add('hidden');
     if (compoViewPopup) compoViewPopup.classList.add('hidden');
 
@@ -2585,7 +2581,8 @@ const compAdjointOption  = document.getElementById('comp-adjoint-option');
 
 let compositionLocale = [];
 
-safeOn(btnComposition, 'click', () => {
+// ✅ NOUVELLE FONCTION : ouvre la popup de configuration
+function ouvrirCompositionEdition() {
   const user = window.firebaseAuth?.currentUser;
   if (!user || !currentGameData) return;
 
@@ -2627,7 +2624,9 @@ safeOn(btnComposition, 'click', () => {
 
   renderCompositionPopup();
   if (compositionPopup) compositionPopup.classList.remove('hidden');
-});
+}
+
+safeOn(btnComposition, 'click', ouvrirCompositionEdition);
 
 safeOn(compClose, 'click', () => {
   if (compositionPopup) compositionPopup.classList.add('hidden');
@@ -3009,8 +3008,19 @@ safeOn(mobileBtnPlus,  'click', () => changerMaxPlayers(+1));
 
 safeOn(mobileChatComp, 'click', () => {
   closeMobileChat();
-  // Sur mobile → on ouvre la composition en lecture seule
-  setTimeout(() => afficherCompoActuelle(), 150);
+
+  const user = window.firebaseAuth?.currentUser;
+  const estHote = user && currentGameData && currentGameData.hostId === user.uid;
+
+  setTimeout(() => {
+    if (estHote) {
+      // ✅ Hôte → ouvre la popup de CONFIGURATION (édition)
+      ouvrirCompositionEdition();
+    } else {
+      // Non-hôte → lecture seule
+      afficherCompoActuelle();
+    }
+  }, 150);
 });
 
 function updateMobileBubbleVisibility() {

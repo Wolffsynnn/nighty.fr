@@ -1195,17 +1195,25 @@ safeOn(profileActionBtn, 'click', async () => {
 });
 
 // ===================== LIEN D'INVITATION AMI =====================
+// ✅ FIX : ne s'active QUE si ?invite= est dans l'URL (plus de reload parasite)
 function checkInviteLink() {
   const params = new URLSearchParams(window.location.search);
   const invitePseudo = params.get('invite');
 
-  if (invitePseudo) {
-    sessionStorage.setItem('pendingInvite', invitePseudo);
+  // Pas de paramètre → on nettoie tout et on sort
+  if (!invitePseudo) {
+    sessionStorage.removeItem('pendingInvite');
+    return;
+  }
 
-    if (window.firebaseAuth?.currentUser) {
-      setTimeout(() => openProfile(invitePseudo), 500);
-      sessionStorage.removeItem('pendingInvite');
-    }
+  // Nettoie l'URL immédiatement
+  window.history.replaceState({}, '', window.location.pathname);
+
+  const user = window.firebaseAuth?.currentUser;
+  if (user) {
+    setTimeout(() => openProfile(invitePseudo), 500);
+  } else {
+    sessionStorage.setItem('pendingInvite', invitePseudo);
   }
 }
 
@@ -1811,23 +1819,25 @@ safeOn(cgCreate, 'click', async () => {
   }
 });
 
+// ✅ FIX : ne rejoint QUE si ?game= est dans l'URL (plus de reload parasite)
 function checkGameLink() {
   const params = new URLSearchParams(window.location.search);
   const urlGameId = params.get('game');
 
-  if (urlGameId) {
-    window.history.replaceState({}, '', window.location.pathname);
-    sessionStorage.setItem('pendingGameId', urlGameId);
+  // Pas de paramètre → on nettoie tout et on sort (évite le reload → auto-rejoin)
+  if (!urlGameId) {
+    sessionStorage.removeItem('pendingGameId');
+    return;
   }
 
-  const pendingGameId = sessionStorage.getItem('pendingGameId');
+  // Nettoie l'URL immédiatement
+  window.history.replaceState({}, '', window.location.pathname);
 
-  if (pendingGameId) {
-    const user = window.firebaseAuth?.currentUser;
-    if (user) {
-      sessionStorage.removeItem('pendingGameId');
-      setTimeout(() => joinGame(pendingGameId), 500);
-    }
+  const user = window.firebaseAuth?.currentUser;
+  if (user) {
+    setTimeout(() => joinGame(urlGameId), 500);
+  } else {
+    sessionStorage.setItem('pendingGameId', urlGameId);
   }
 }
 

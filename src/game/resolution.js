@@ -201,7 +201,7 @@ async function resoudreMinuit(gameId, data, actions, tour) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🌅 AUBE → Applique les morts + annonces
+// 🌅 AUBE → Applique les morts + annonces + fin de partie
 // ═══════════════════════════════════════════════════════════
 
 async function resoudreAube(gameId, data, actions, tour) {
@@ -213,6 +213,23 @@ async function resoudreAube(gameId, data, actions, tour) {
   const mortsNuit = data.mortsNuit || [];
   const mortsAppliquees = [];
 
+  // ✅ FIX BUG 2 — Nightmares : applique les morts différées
+  const marques = data.marques || [];
+  const marquesQuiTuents = marques.filter(m => m.tourMort === tour);
+  const marquesRestantes = marques.filter(m => m.tourMort > tour);
+
+  // Récupère le pseudo + role pour l'annonce nightmares
+  for (const marque of marquesQuiTuents) {
+    if (!mortsNuit.find(m => m.uid === marque.cible)) {
+      mortsNuit.push({
+        uid: marque.cible,
+        cause: 'nightmares',
+        tour,
+      });
+    }
+  }
+
+  // ✅ FIX BUG 1 — Applique les morts + retire le mort des marques
   if (mortsNuit.length > 0) {
     const { doc, updateDoc, arrayRemove, arrayUnion } = await getFirestoreFns();
 
@@ -231,6 +248,20 @@ async function resoudreAube(gameId, data, actions, tour) {
       mortsNuit: [],
     });
   }
+
+  // ✅ FIX BUG 2 (suite) — Met à jour les marques restantes
+  if (marquesQuiTuents.length > 0 || marques.length !== marquesRestantes.length) {
+    const { doc, updateDoc } = await getFirestoreFns();
+    await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+      marques: marquesRestantes,
+    });
+  }
+
+  // ✅ FIX BUG 1 (suite) — Reset les protections du Garde chaque aube
+  const { doc, updateDoc } = await getFirestoreFns();
+  await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+    protectionsGarde: [],
+  });
 
   // ─── Annonce publique ───
   if (mortsAppliquees.length === 0) {
@@ -252,7 +283,6 @@ async function resoudreAube(gameId, data, actions, tour) {
 
   // ─── Voyante Bavarde : révèle le rôle au village ───
   if (data.voyanteBavardeVision && data.voyanteBavardeVision.tour === tour) {
-    const { doc, updateDoc } = await getFirestoreFns();
     await ajouterMessage(gameId, {
       text: `🔮 La Voyante Bavarde a eu une vision : le rôle découvert est ${getRoleName(data.voyanteBavardeVision.role)}.`,
       systeme: true,
@@ -261,6 +291,88 @@ async function resoudreAube(gameId, data, actions, tour) {
       voyanteBavardeVision: null,
     });
   }
+
+  // ✅ FIX BUG 3 — Vérifie la victoire
+  const dataApresAube = await lireGame(gameId);
+  if (dataApresAube) {
+    const resultat = verifierVictoire(dataApresAube);
+    if (resultat) {
+      await terminerPartie(gameId, resultat.gagnant);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🏆 FIN DE PARTIE
+// ═══════════════════════════════════════════════════════════
+
+function getCampDuRole(roleId) {
+  if (!roleId) return 'inconnu';
+  if (roleId === 'loup-blanc') return 'neutre';
+  if (roleId.startsWith('loup')) return 'loups';
+  if (roleId.startsWith('nightmares')) return 'nightmares';
+  return 'village';
+}
+
+function verifierVictoire(data) {
+  const rolesJoueurs = data.rolesJoueurs || {};
+  const vivants = data.joueursVivants || [];
+
+  if (vivants.length === 0) return null;
+
+  let nbLoups = 0;
+  let nbVillage = 0;
+  let nbNightmares = 0;
+  let nbNeutres = 0;
+
+  for (const uid of vivants) {
+    const camp = getCampDuRole(rolesJoueurs[uid]);
+    if (camp === 'loups') nbLoups++;
+    else if (camp === 'village') nbVillage++;
+    else if (camp === 'nightmares') nbNightmares++;
+    else if (camp === 'neutre') nbNeutres++;
+  }
+
+  // 🌑 Nightmares : gagnent quand tous les autres sont morts
+  if (nbNightmares > 0 && nbLoups === 0 && nbVillage === 0 && nbNeutres === 0) {
+    return { gagnant: 'nightmares' };
+  }
+
+  // 🏡 Village : gagne quand tous les loups + neutres + nightmares sont morts
+  if (nbLoups === 0 && nbNeutres === 0 && nbNightmares === 0 && nbVillage > 0) {
+    return { gagnant: 'village' };
+  }
+
+  // 🐺 Loups : gagnent quand ils égalent ou dépassent le village
+  if (nbLoups > 0 && nbLoups >= nbVillage) {
+    return { gagnant: 'loups' };
+  }
+
+  return null;
+}
+
+async function terminerPartie(gameId, gagnant) {
+  const { doc, updateDoc } = await getFirestoreFns();
+
+  const labels = {
+    'village': '🏡 Le Village',
+    'loups': '🐺 Les Loups-Garous',
+    'nightmares': '🌑 Les Nightmares',
+  };
+
+  await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+    enCours: false,
+    status: 'finished',
+    gagnant,
+    finAt: Date.now(),
+  });
+
+  await ajouterMessage(gameId, {
+    text: `🎉 FIN DE PARTIE — ${labels[gagnant] || gagnant} remportent la victoire !`,
+    systeme: true,
+  });
+
+  console.log(`🏆 Partie terminée — gagnant : ${gagnant}`);
 }
 
 // ═══════════════════════════════════════════════════════════

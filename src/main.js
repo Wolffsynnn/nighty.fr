@@ -1314,6 +1314,60 @@ function afficherPhase(phase, tour) {
   elTour.textContent = `Tour ${tour}`;
 
   updateChatInputState();
+  updateInfoVoyanceCard(phase);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔮 CARTE INFORMATION — Rôles de voyance
+// ═══════════════════════════════════════════════════════════
+
+const TEXTES_INFO_VOYANCE = {
+  'voyante': 'En tant que Voyante, tu dois sonder un joueur pour découvrir son rôle. Clique sur un joueur pour le sonder, ou ne fais rien pour passer.',
+  'voyante-bavarde': 'En tant que Voyante Bavarde, tu dois sonder un joueur pour découvrir son rôle. Le village apprendra son rôle au matin (sans savoir qui c\'est). Clique sur un joueur, ou ne fais rien pour passer.',
+};
+
+function updateInfoVoyanceCard(phase) {
+  const card = document.getElementById('info-voyance-card');
+  const texteEl = document.getElementById('info-voyance-texte');
+  if (!card || !texteEl) return;
+
+  // Cacher si on n'est pas au crépuscule
+  if (phase !== 'crepuscule') {
+    card.classList.add('hidden');
+    return;
+  }
+
+  // Pas de partie en cours → rien
+  if (!currentGameData || currentGameData.enCours !== true) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  const user = window.firebaseAuth?.currentUser;
+  if (!user) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  const monRole = currentGameData.rolesJoueurs?.[user.uid];
+  const texte = TEXTES_INFO_VOYANCE[monRole];
+
+  // Pas voyante / voyante bavarde → rien
+  if (!texte) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  // Joueur mort → rien
+  const vivants = currentGameData.joueursVivants || [];
+  if (!vivants.includes(user.uid)) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  // Affiche la carte
+  texteEl.textContent = texte;
+  card.classList.remove('hidden');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1664,6 +1718,7 @@ function ecouterLeTimerDePhase(gameId) {
       actionDejaEnvoyee = false;
       actionPhaseKey = null;
       desactiverSelectionCible();
+      updateInfoVoyanceCard(nouvellePhase);
     },
   }).then(unsub => {
     phaseTimerUnsubscribe = unsub;

@@ -10,14 +10,16 @@ import { prochainePhaseActive, ORDRE_PHASES } from './roles-actifs.js';
 // ═══════════════════════════════════════════════════════════
 
 export const DUREES_PHASES = {
-  'avant-crepuscule': 15 * 1000,
-  'crepuscule':       20 * 1000,
-  'minuit':           30 * 1000,
-  'apres-minuit':     20 * 1000,
-  'aube':             15 * 1000,
-  'jour':             60 * 1000,
-  'vote':             120 * 1000,
-  'soir':             20 * 1000,
+  'regarder-role':    10 * 1000,
+  'avant-crepuscule': 45 * 1000,
+  'crepuscule':       45 * 1000,
+  'minuit':           90 * 1000,
+  'aprs-minuit':      30 * 1000,
+  'nuit':             45 * 1000,
+  'aube':             10 * 1000,
+  'vote-maire':       90 * 1000,
+  'vote-village':     180 * 1000,
+  'soir':             10 * 1000,
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -99,7 +101,7 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 
         if (restant <= 0) {
           stopperTimer();
-          avancerPhaseSiPossible(gameId);
+          avancerPhaseSiPossible(gameId, phaseStartedAt);
 
           if (typeof callbacks.onTick === 'function') {
             callbacks.onTick(0, phase, tour);
@@ -124,7 +126,7 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 // ▶️ AVANCER À LA PHASE SUIVANTE ACTIVE
 // ═══════════════════════════════════════════════════════════
 
-export async function avancerPhaseSiPossible(gameId) {
+export async function avancerPhaseSiPossible(gameId, phaseStartedAtAttendu) {
   const { doc, runTransaction } = await getFirestoreFns();
 
   try {
@@ -136,6 +138,11 @@ export async function avancerPhaseSiPossible(gameId) {
 
       const data = snap.data();
       if (!data.enCours) return { ok: false, raison: 'pas-en-cours' };
+
+      // ✅ VERROU : si un autre client a déjà avancé la phase, on abandonne
+      if (data.phaseStartedAt !== phaseStartedAtAttendu) {
+        return { ok: false, raison: 'deja-avancee-par-un-autre-client' };
+      }
 
       const phaseActuelle = data.phase;
       const tourActuel = data.tour || 1;
@@ -169,15 +176,15 @@ export async function avancerPhaseSiPossible(gameId) {
     });
 
     if (resultat.ok) {
-        console.log(`▶️ ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
-  
-        // ✅ Résout la phase qui vient de se terminer
-        resoudrePhaseTerminee(
-          gameId,
-          resultat.anciennePhase,
-          resultat.ancienTour
-        ).catch(err => console.warn('⚠️ Résolution échouée:', err));
-      }
+      console.log(`▶️ ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
+
+      // ✅ Résout la phase qui vient de se terminer
+      resoudrePhaseTerminee(
+        gameId,
+        resultat.anciennePhase,
+        resultat.ancienTour
+      ).catch(err => console.warn('⚠️ Résolution échouée:', err));
+    }
 
     return resultat;
 

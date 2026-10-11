@@ -2599,14 +2599,6 @@ body.is-mobile.phase-nuit #game-lobby-screen .bg-layer {
   background-position: center top;
 }
 
-/* ───── Fond par défaut du lobby de partie (si pas de phase active) ───── */
-#game-lobby-screen .bg-layer {
-  background-image: url('https://i.postimg.cc/vmk74z9K/4b5327d1-b0e3-40e6-9658-2ce470d29d3e.png') !important;
-  background-size: cover;
-  background-position: center;
-  transition: background-image 0.8s ease-in-out;
-}
-
 body.is-mobile .game-lobby-layout {
   padding: 90px 8px 90px 8px;
 }

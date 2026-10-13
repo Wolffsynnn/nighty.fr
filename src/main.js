@@ -2266,32 +2266,37 @@ const glChatMessages = document.getElementById('gl-chat-messages');
 const glChatInput    = document.getElementById('gl-chat-input');
 const glChatSend     = document.getElementById('gl-chat-send');
 
-function renderChat(messages) {
-  if (!glChatMessages) return;
+function renderMobileChat() {
+  if (!currentGameData) return;
 
-  const user = window.firebaseAuth?.currentUser;
-  if (!user) return;
+  if (mobileChatVillage) {
+    mobileChatVillage.textContent = currentGameData.villageName || 'Village';
+  }
+  if (mobileChatCount) {
+    mobileChatCount.textContent = `👥 ${currentGameData.players.length}/${currentGameData.maxPlayers}`;
+  }
 
-  const wasAtBottom =
-    glChatMessages.scrollHeight - glChatMessages.scrollTop - glChatMessages.clientHeight < 40;
+  if (mobileChatMessages) {
+    const user = window.firebaseAuth?.currentUser;
 
-  const messagesFiltres = messages.filter(m => {
-    if (m.pour) return m.pour === user.uid;
-    return true;
-  });
+    const messages = currentGameData.messages || [];
 
-  glChatMessages.innerHTML = messagesFiltres.map(m => {
-    const classes = m.systeme ? 'gl-chat-msg gl-chat-msg-systeme' : 'gl-chat-msg';
-    const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
-    return `
-      <div class="${classes}">
-        ${auteur}${m.text}
-      </div>
-    `;
-  }).join('');
+    const messagesFiltres = messages.filter(m => {
+      if (m.pour) return m.pour === user?.uid;
+      return true;
+    });
 
-  if (wasAtBottom) {
-    glChatMessages.scrollTop = glChatMessages.scrollHeight;
+    mobileChatMessages.innerHTML = messagesFiltres.map(m => {
+      const classes = buildMessageClasses(m);
+      const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
+      return `
+        <div class="${classes}">
+          ${auteur}${m.text}
+        </div>
+      `;
+    }).join('');
+
+    mobileChatMessages.scrollTop = mobileChatMessages.scrollHeight;
   }
 }
 
@@ -3057,3 +3062,16 @@ renderGameLobby = function(data) {
     renderMobileChat();
   }
 };
+
+// ═══════════════════════════════════════════════════════════
+// 💬 UTILITAIRE : construire les classes CSS d'un message
+// ═══════════════════════════════════════════════════════════
+
+function buildMessageClasses(m) {
+  let classes = 'gl-chat-msg';
+
+  if (m.systeme) classes += ' gl-chat-msg-systeme';
+  if (m.couleur) classes += ` gl-chat-msg-${m.couleur}`;
+
+  return classes;
+}

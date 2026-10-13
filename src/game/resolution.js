@@ -9,6 +9,8 @@
 //   4. Envoie les messages publics
 // ═══════════════════════════════════════════════════════════
 
+import * as NOTIF from './notifications.js';
+
 let firestoreFns = null;
 async function getFirestoreFns() {
   if (!firestoreFns) {
@@ -40,6 +42,11 @@ async function lireActions(gameId, tour, phase) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * Envoie un message dans le chat.
+ * @param {string} gameId
+ * @param {Object} msg - { text, couleur?, pour?, pseudo?, systeme? }
+ */
 async function ajouterMessage(gameId, msg) {
   const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
   await updateDoc(doc(window.firebaseDB, 'games', gameId), {
@@ -49,22 +56,7 @@ async function ajouterMessage(gameId, msg) {
       at: Date.now(),
       systeme: msg.systeme || false,
       pour: msg.pour || null,
-    })
-  });
-}
-
-async function ajouterMessageVoyance(gameId, uid, ciblePseudo, roleId) {
-  const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
-  await updateDoc(doc(window.firebaseDB, 'games', gameId), {
-    messages: arrayUnion({
-      pseudo: '🔮 Vision',
-      text: `Tu vois que ${ciblePseudo} est : ${getRoleName(roleId)}`,
-      at: Date.now(),
-      systeme: true,
-      pour: uid,
-      voyance: true,
-      ciblePseudo,
-      roleId,
+      couleur: msg.couleur || null,
     })
   });
 }
@@ -83,13 +75,21 @@ async function resoudreCrepuscule(gameId, data, actions, tour) {
     // ─── VOYANTE ───
     if (role === 'voyante') {
       const roleVu = roles[action.cible];
-      await ajouterMessageVoyance(gameId, action.uid, action.ciblePseudo, roleVu);
+      const roleNom = getRoleName(roleVu);
+      await ajouterMessage(
+        gameId,
+        NOTIF.voyancePrivee(action.uid, action.ciblePseudo, roleNom)
+      );
     }
 
     // ─── VOYANTE BAVARDE ───
     else if (role === 'voyante-bavarde') {
       const roleVu = roles[action.cible];
-      await ajouterMessageVoyance(gameId, action.uid, action.ciblePseudo, roleVu);
+      const roleNom = getRoleName(roleVu);
+      await ajouterMessage(
+        gameId,
+        NOTIF.voyancePrivee(action.uid, action.ciblePseudo, roleNom)
+      );
 
       const { doc, updateDoc } = await getFirestoreFns();
       await updateDoc(doc(window.firebaseDB, 'games', gameId), {
@@ -107,11 +107,10 @@ async function resoudreCrepuscule(gameId, data, actions, tour) {
       await updateDoc(doc(window.firebaseDB, 'games', gameId), {
         protectionsGarde: arrayUnion(action.cible),
       });
-      await ajouterMessage(gameId, {
-        text: `🛡️ Tu protèges ${action.ciblePseudo} cette nuit.`,
-        pour: action.uid,
-        systeme: true,
-      });
+      await ajouterMessage(
+        gameId,
+        NOTIF.gardeProtege(action.uid, action.ciblePseudo)
+      );
     }
   }
 }
@@ -151,10 +150,7 @@ async function resoudreMinuit(gameId, data, actions, tour) {
     const protegeGarde = (data.protectionsGarde || []).includes(cibleLoups);
 
     if (protegeGarde) {
-      await ajouterMessage(gameId, {
-        text: `🐺 Les loups ont attaqué cette nuit, mais la cible était protégée !`,
-        systeme: true,
-      });
+      await ajouterMessage(gameId, NOTIF.cibleProtegee());
     } else {
       const { doc, updateDoc, arrayUnion } = await getFirestoreFns();
       await updateDoc(doc(window.firebaseDB, 'games', gameId), {
@@ -166,10 +162,7 @@ async function resoudreMinuit(gameId, data, actions, tour) {
       });
     }
   } else if (egalite) {
-    await ajouterMessage(gameId, {
-      text: `🐺 Égalité dans le vote des loups → personne ne meurt.`,
-      systeme: true,
-    });
+    await ajouterMessage(gameId, NOTIF.egaliteLoups());
   }
 
   // ─── Nightmares Original ───
@@ -186,16 +179,14 @@ async function resoudreMinuit(gameId, data, actions, tour) {
           tourMort: tour + 1,
         })
       });
-      await ajouterMessage(gameId, {
-        text: `⚠️ Tu ressens une présence sombre t'envahir...`,
-        pour: action.cible,
-        systeme: true,
-      });
-      await ajouterMessage(gameId, {
-        text: `🌑 Tu as marqué ${action.ciblePseudo}. Il mourra au tour suivant.`,
-        pour: action.uid,
-        systeme: true,
-      });
+      await ajouterMessage(
+        gameId,
+        NOTIF.nightmaresCibleMarquee(action.cible)
+      );
+      await ajouterMessage(
+        gameId,
+        NOTIF.nightmaresConfirmation(action.uid, action.ciblePseudo)
+      );
     }
   }
 }
@@ -213,12 +204,11 @@ async function resoudreAube(gameId, data, actions, tour) {
   const mortsNuit = data.mortsNuit || [];
   const mortsAppliquees = [];
 
-  // ✅ FIX BUG 2 — Nightmares : applique les morts différées
+  // ✅ Nightmares : applique les morts différées
   const marques = data.marques || [];
   const marquesQuiTuents = marques.filter(m => m.tourMort === tour);
   const marquesRestantes = marques.filter(m => m.tourMort > tour);
 
-  // Récupère le pseudo + role pour l'annonce nightmares
   for (const marque of marquesQuiTuents) {
     if (!mortsNuit.find(m => m.uid === marque.cible)) {
       mortsNuit.push({
@@ -229,7 +219,7 @@ async function resoudreAube(gameId, data, actions, tour) {
     }
   }
 
-  // ✅ FIX BUG 1 — Applique les morts + retire le mort des marques
+  // ✅ Applique les morts
   if (mortsNuit.length > 0) {
     const { doc, updateDoc, arrayRemove, arrayUnion } = await getFirestoreFns();
 
@@ -243,13 +233,12 @@ async function resoudreAube(gameId, data, actions, tour) {
       });
     }
 
-    // Reset les morts de la nuit
     await updateDoc(doc(window.firebaseDB, 'games', gameId), {
       mortsNuit: [],
     });
   }
 
-  // ✅ FIX BUG 2 (suite) — Met à jour les marques restantes
+  // ✅ Met à jour les marques restantes
   if (marquesQuiTuents.length > 0 || marques.length !== marquesRestantes.length) {
     const { doc, updateDoc } = await getFirestoreFns();
     await updateDoc(doc(window.firebaseDB, 'games', gameId), {
@@ -257,7 +246,7 @@ async function resoudreAube(gameId, data, actions, tour) {
     });
   }
 
-  // ✅ FIX BUG 1 (suite) — Reset les protections du Garde chaque aube
+  // ✅ Reset les protections du Garde chaque aube
   const { doc, updateDoc } = await getFirestoreFns();
   await updateDoc(doc(window.firebaseDB, 'games', gameId), {
     protectionsGarde: [],
@@ -265,34 +254,27 @@ async function resoudreAube(gameId, data, actions, tour) {
 
   // ─── Annonce publique ───
   if (mortsAppliquees.length === 0) {
-    await ajouterMessage(gameId, {
-      text: `🌅 Aucun mort cette nuit.`,
-      systeme: true,
-    });
+    await ajouterMessage(gameId, NOTIF.aucunMort());
   } else if (mortsAppliquees.length === 1) {
-    await ajouterMessage(gameId, {
-      text: `🌅 Cette nuit, ${mortsAppliquees[0]} est mort(e).`,
-      systeme: true,
-    });
+    await ajouterMessage(gameId, NOTIF.mortUnique(mortsAppliquees[0]));
   } else {
-    await ajouterMessage(gameId, {
-      text: `🌅 Cette nuit, plusieurs morts : ${mortsAppliquees.join(', ')}.`,
-      systeme: true,
-    });
+    await ajouterMessage(gameId, NOTIF.plusieursMorts(mortsAppliquees));
   }
 
   // ─── Voyante Bavarde : révèle le rôle au village ───
   if (data.voyanteBavardeVision && data.voyanteBavardeVision.tour === tour) {
-    await ajouterMessage(gameId, {
-      text: `🔮 La Voyante Bavarde a eu une vision : le rôle découvert est ${getRoleName(data.voyanteBavardeVision.role)}.`,
-      systeme: true,
-    });
+    const roleId = data.voyanteBavardeVision.role;
+    const roleNom = getRoleName(roleId);
+    const camp = getCampDuRole(roleId);
+
+    await ajouterMessage(gameId, NOTIF.voyanteBavardeRevelation(roleNom, camp));
+
     await updateDoc(doc(window.firebaseDB, 'games', gameId), {
       voyanteBavardeVision: null,
     });
   }
 
-  // ✅ FIX BUG 3 — Vérifie la victoire
+  // ✅ Vérifie la victoire
   const dataApresAube = await lireGame(gameId);
   if (dataApresAube) {
     const resultat = verifierVictoire(dataApresAube);
@@ -354,12 +336,6 @@ function verifierVictoire(data) {
 async function terminerPartie(gameId, gagnant) {
   const { doc, updateDoc } = await getFirestoreFns();
 
-  const labels = {
-    'village': '🏡 Le Village',
-    'loups': '🐺 Les Loups-Garous',
-    'nightmares': '🌑 Les Nightmares',
-  };
-
   await updateDoc(doc(window.firebaseDB, 'games', gameId), {
     enCours: false,
     status: 'finished',
@@ -367,10 +343,7 @@ async function terminerPartie(gameId, gagnant) {
     finAt: Date.now(),
   });
 
-  await ajouterMessage(gameId, {
-    text: `🎉 FIN DE PARTIE — ${labels[gagnant] || gagnant} remportent la victoire !`,
-    systeme: true,
-  });
+  await ajouterMessage(gameId, NOTIF.finDePartie(gagnant));
 
   console.log(`🏆 Partie terminée — gagnant : ${gagnant}`);
 }

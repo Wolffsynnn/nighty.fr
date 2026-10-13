@@ -3259,12 +3259,51 @@ body.is-mobile:not(.chat-open) .back-btn {
 /* ═══════════════════════════════════════════════════════════
    📢 MESSAGES SYSTÈME
    ═══════════════════════════════════════════════════════════ */
-   .gl-chat-msg-systeme {
-    background: rgba(255, 179, 71, 0.1) !important;
-    border-left: 3px solid #ffb347;
-    font-style: italic;
-    color: #ffe0a0 !important;
-  }
+
+/* Style de base pour tous les messages système */
+.gl-chat-msg-systeme {
+  background: rgba(255, 179, 71, 0.1) !important;
+  border-left: 3px solid #ffb347;
+  font-style: italic;
+  color: #ffe0a0 !important;
+}
+
+/* ───── 🎨 COULEURS DES MESSAGES SYSTÈME ───── */
+
+/* 🟢 VERT — positif pour le village */
+.gl-chat-msg-vert {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-left: 3px solid #22c55e !important;
+  color: #86efac !important;
+}
+
+/* 🔴 ROUGE — négatif pour le village */
+.gl-chat-msg-rouge {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-left: 3px solid #ef4444 !important;
+  color: #fca5a5 !important;
+}
+
+/* 🟡 JAUNE — neutre */
+.gl-chat-msg-jaune {
+  background: rgba(234, 179, 8, 0.12) !important;
+  border-left: 3px solid #eab308 !important;
+  color: #fde047 !important;
+}
+
+/* 🔵 BLEU — info */
+.gl-chat-msg-bleu {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-left: 3px solid #3b82f6 !important;
+  color: #93c5fd !important;
+}
+
+/* 🟣 VIOLET — Nightmares */
+.gl-chat-msg-violet {
+  background: rgba(168, 85, 247, 0.12) !important;
+  border-left: 3px solid #a855f7 !important;
+  color: #d8b4fe !important;
+}
   /* ═══════════════════════════════════════════════════════════
    🔮 RÉSULTAT VOYANCE
    ═══════════════════════════════════════════════════════════ */

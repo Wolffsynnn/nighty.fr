@@ -1992,11 +1992,14 @@ async function watchGame(gameId) {
     if (data.enCours === true || data.status === 'playing') {
       const overlay = document.getElementById('countdown-overlay');
       if (overlay) overlay.classList.add('hidden');
-
+    
       onPartieLancee(data);
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
       updateChatInputState();
-
+    
+      // ✅ Met à jour le chat PC avec les nouveaux messages
+      renderChat(data.messages || []);
+    
       activerSelectionCible();
       return;
     }

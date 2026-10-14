@@ -2003,6 +2003,7 @@ async function watchGame(gameId) {
       activerSelectionCible();
       return;
     }
+    
 
     renderGameLobby(data);
   });

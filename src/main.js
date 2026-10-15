@@ -2556,6 +2556,25 @@ async function leaveGame() {
     document.body.classList.remove('game-started');
     document.body.classList.remove('phase-jour', 'phase-nuit');
 
+    // ✅ Cache tous les overlays de partie
+    const phaseOverlay = document.getElementById('phase-overlay');
+    if (phaseOverlay) phaseOverlay.classList.add('hidden');
+
+    const countdownOverlay = document.getElementById('countdown-overlay');
+    if (countdownOverlay) countdownOverlay.classList.add('hidden');
+
+    const infoVoyanceCard = document.getElementById('info-voyance-card');
+    if (infoVoyanceCard) infoVoyanceCard.classList.add('hidden');
+
+    if (voyanceOverlay) voyanceOverlay.classList.add('hidden');
+    if (roleRevealOverlay) roleRevealOverlay.classList.add('hidden');
+
+    const actionModal = document.getElementById('action-modal');
+    if (actionModal) actionModal.classList.add('hidden');
+
+    // ✅ Ferme le chat mobile si ouvert
+    closeMobileChat();
+
     if (btnVoirCompo) btnVoirCompo.classList.add('hidden');
     if (compoViewPopup) compoViewPopup.classList.add('hidden');
 

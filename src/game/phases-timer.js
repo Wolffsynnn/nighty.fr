@@ -4,6 +4,7 @@
 
 import { resoudrePhaseTerminee } from './resolution.js';
 import { prochainePhaseActive, ORDRE_PHASES } from './roles-actifs.js';
+import * as NOTIF from './notifications.js';
 
 // ═══════════════════════════════════════════════════════════
 // ⏱️ DURÉES DES PHASES (en ms)
@@ -14,7 +15,7 @@ export const DUREES_PHASES = {
   'avant-crepuscule': 45 * 1000,
   'crepuscule':       45 * 1000,
   'minuit':           90 * 1000,
-  'aprs-minuit':      30 * 1000,
+  'apres-minuit':     30 * 1000,
   'nuit':             45 * 1000,
   'aube':             10 * 1000,
   'vote-maire':       90 * 1000,
@@ -63,6 +64,7 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 
   let timerInterval = null;
   let dernierTickKey = null;
+  let dernierePhase = null;
 
   function stopperTimer() {
     if (timerInterval) {
@@ -89,6 +91,15 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
       const { phase, tour, phaseStartedAt, phaseDuree } = data;
 
       if (!phaseStartedAt || !phaseDuree) return;
+
+      // 🆕 DÉTECTION DE CHANGEMENT DE PHASE via snapshot
+      const phaseKey = `${phase}-${tour}`;
+      if (dernierePhase !== null && dernierePhase !== phaseKey) {
+        // La phase a changé → on déclenche la résolution de la phase PRÉCÉDENTE
+        console.log(`🔄 Changement détecté : ${dernierePhase} → ${phaseKey}`);
+        declencherResolution(gameId, data);
+      }
+      dernierePhase = phaseKey;
 
       const tickKey = `${phase}-${tour}-${phaseStartedAt}`;
       if (tickKey === dernierTickKey) return;
@@ -123,6 +134,76 @@ export async function ecouterTimerPhase(gameId, callbacks = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// 🔧 DÉCLENCHEMENT DE LA RÉSOLUTION (au changement de phase)
+// ═══════════════════════════════════════════════════════════
+
+let phasesResolues = new Set(); // évite les doublons en local
+
+async function declencherResolution(gameId, data) {
+  const phaseActuelle = data.phase;
+  const tourActuel = data.tour || 1;
+
+  // Retrouve la phase précédente
+  const idx = ORDRE_PHASES.indexOf(phaseActuelle);
+  const idxPrecedent = idx === 0 ? ORDRE_PHASES.length - 1 : idx - 1;
+  const phasePrecedente = ORDRE_PHASES[idxPrecedent];
+
+  // Tour précédent
+  const tourPrecedent = idx === 0 ? tourActuel - 1 : tourActuel;
+
+  const cle = `${phasePrecedente}-${tourPrecedent}`;
+  if (phasesResolues.has(cle)) return;
+  phasesResolues.add(cle);
+
+  console.log(`🔧 Résolution de ${phasePrecedente} (tour ${tourPrecedent})`);
+
+  try {
+    await resoudrePhaseTerminee(gameId, phasePrecedente, tourPrecedent);
+  } catch (err) {
+    console.warn('⚠️ Résolution échouée:', err);
+    phasesResolues.delete(cle); // permet de réessayer
+  }
+
+  // 🆕 Envoie le message de la NOUVELLE phase
+  await envoyerMessagePhase(gameId, phaseActuelle);
+}
+
+// ═══════════════════════════════════════════════════════════
+// 📢 MESSAGE DE PHASE
+// ═══════════════════════════════════════════════════════════
+
+const phasesDejaAnnoncees = new Set();
+
+async function envoyerMessagePhase(gameId, phase) {
+  // Récupère tour pour la clé d'unicité
+  const { doc, getDoc, updateDoc, arrayUnion } = await getFirestoreFns();
+  const snap = await getDoc(doc(window.firebaseDB, 'games', gameId));
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const cle = `${phase}-${data.tour || 1}`;
+
+  if (phasesDejaAnnoncees.has(cle)) return;
+  phasesDejaAnnoncees.add(cle);
+
+  const notif = NOTIF.messagePhase(phase);
+  if (!notif) return;
+
+  await updateDoc(doc(window.firebaseDB, 'games', gameId), {
+    messages: arrayUnion({
+      pseudo: '📢 Système',
+      text: notif.text,
+      at: Date.now(),
+      systeme: true,
+      pour: null,
+      couleur: notif.couleur,
+    })
+  });
+
+  console.log(`📢 Message de phase envoyé : ${phase}`);
+}
+
+// ═══════════════════════════════════════════════════════════
 // ▶️ AVANCER À LA PHASE SUIVANTE ACTIVE
 // ═══════════════════════════════════════════════════════════
 
@@ -147,13 +228,11 @@ export async function avancerPhaseSiPossible(gameId, phaseStartedAtAttendu) {
       const phaseActuelle = data.phase;
       const tourActuel = data.tour || 1;
 
-      // ─── Reconstruit un mini-objet jeu pour les helpers ───
       const jeuMini = {
         joueurs: reconstruireJoueurs(data),
         roles: data.roles || [],
       };
 
-      // ─── Calcule la prochaine phase active ───
       const suivant = prochainePhaseActive(jeuMini, phaseActuelle, tourActuel);
 
       const nouvelleDuree = DUREES_PHASES[suivant.phase] || 30000;
@@ -177,25 +256,26 @@ export async function avancerPhaseSiPossible(gameId, phaseStartedAtAttendu) {
 
     if (resultat.ok) {
       console.log(`▶️ ${resultat.anciennePhase} → ${resultat.nouvellePhase} (Tour ${resultat.nouveauTour})`);
-
-      // ✅ Résout la phase qui vient de se terminer
-      resoudrePhaseTerminee(
-        gameId,
-        resultat.anciennePhase,
-        resultat.ancienTour
-      ).catch(err => console.warn('⚠️ Résolution échouée:', err));
+    } else {
+      console.log(`⏸️ Avancée ignorée : ${resultat.raison}`);
     }
 
     return resultat;
 
   } catch (err) {
-    console.log('⏸️ Transaction perdue.');
+    // Conflit multi-client = normal
+    if (err.code === 'failed-precondition' || err.code === 'aborted') {
+      console.log('⏸️ Conflit multi-client (normal).');
+      return { ok: false, raison: 'conflit-multi-client' };
+    }
+
+    console.warn('⏸️ Transaction échouée :', err);
     return { ok: false, raison: 'transaction-perdue', err };
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// 🔧 UTILITAIRE : reconstruire les joueurs depuis Firestore
+// 🔧 UTILITAIRE
 // ═══════════════════════════════════════════════════════════
 
 function reconstruireJoueurs(data) {
@@ -211,10 +291,6 @@ function reconstruireJoueurs(data) {
 
   return joueurs;
 }
-
-// ═══════════════════════════════════════════════════════════
-// 📦 EXPORTS
-// ═══════════════════════════════════════════════════════════
 
 export default {
   DUREES_PHASES,

@@ -1707,12 +1707,26 @@ function ecouterLeTimerDePhase(gameId) {
 
   ecouterTimerPhase(gameId, {
     onTick: (restant, phase, tour) => {
+      // ✅ Ne pas afficher si on n'est PAS sur l'écran de jeu
+      const activeScreen = document.querySelector('.screen:not(.hidden)');
+      if (!activeScreen || activeScreen.id !== 'game-lobby-screen') {
+        if (overlay) overlay.classList.add('hidden');
+        return;
+      }
+    
+      // ✅ Ne pas afficher si la partie est terminée
+      if (!currentGameData || currentGameData.enCours !== true) {
+        if (overlay) overlay.classList.add('hidden');
+        return;
+      }
+    
       if (overlay && elNom && elTour) {
         overlay.classList.remove('hidden');
         elNom.textContent = (NOMS_PHASES[phase] || phase) + ` (${Math.ceil(restant / 1000)}s)`;
         elTour.textContent = `Tour ${tour}`;
       }
     },
+    
     onPhaseChange: (nouvellePhase, nouveauTour) => {
       console.log(`🎬 Nouvelle phase : ${nouvellePhase} (Tour ${nouveauTour})`);
       actionDejaEnvoyee = false;
@@ -2543,10 +2557,15 @@ async function leaveGame() {
       lancementUnsubscribe = null;
     }
 
-    if (phaseTimerUnsubscribe) {
-      phaseTimerUnsubscribe();
-      phaseTimerUnsubscribe = null;
-    }
+    // ✅ Stoppe le timer AVANT de nettoyer
+if (phaseTimerUnsubscribe) {
+  try { phaseTimerUnsubscribe(); } catch (e) {}
+  phaseTimerUnsubscribe = null;
+}
+
+// ✅ Cache immédiatement l'overlay de phase
+const phaseOverlay = document.getElementById('phase-overlay');
+if (phaseOverlay) phaseOverlay.classList.add('hidden');
 
     desactiverSelectionCible();
     actionDejaEnvoyee = false;

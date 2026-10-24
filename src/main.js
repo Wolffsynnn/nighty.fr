@@ -1195,18 +1195,15 @@ safeOn(profileActionBtn, 'click', async () => {
 });
 
 // ===================== LIEN D'INVITATION AMI =====================
-// ✅ FIX : ne s'active QUE si ?invite= est dans l'URL (plus de reload parasite)
 function checkInviteLink() {
   const params = new URLSearchParams(window.location.search);
   const invitePseudo = params.get('invite');
 
-  // Pas de paramètre → on nettoie tout et on sort
   if (!invitePseudo) {
     sessionStorage.removeItem('pendingInvite');
     return;
   }
 
-  // Nettoie l'URL immédiatement
   window.history.replaceState({}, '', window.location.pathname);
 
   const user = window.firebaseAuth?.currentUser;
@@ -1332,13 +1329,11 @@ function updateInfoVoyanceCard(phase) {
   const texteEl = document.getElementById('info-voyance-texte');
   if (!card || !texteEl) return;
 
-  // Cacher si on n'est pas au crépuscule
   if (phase !== 'crepuscule') {
     card.classList.add('hidden');
     return;
   }
 
-  // Pas de partie en cours → rien
   if (!currentGameData || currentGameData.enCours !== true) {
     card.classList.add('hidden');
     return;
@@ -1353,20 +1348,17 @@ function updateInfoVoyanceCard(phase) {
   const monRole = currentGameData.rolesJoueurs?.[user.uid];
   const texte = TEXTES_INFO_VOYANCE[monRole];
 
-  // Pas voyante / voyante bavarde → rien
   if (!texte) {
     card.classList.add('hidden');
     return;
   }
 
-  // Joueur mort → rien
   const vivants = currentGameData.joueursVivants || [];
   if (!vivants.includes(user.uid)) {
     card.classList.add('hidden');
     return;
   }
 
-  // Affiche la carte
   texteEl.textContent = texte;
   card.classList.remove('hidden');
 }
@@ -1497,7 +1489,6 @@ safeOn(compoViewClose, 'click', () => {
   if (compoViewPopup) compoViewPopup.classList.add('hidden');
 });
 
-// ✅ Affiche/cache le bouton (PC uniquement, dans le lobby)
 function updateBtnVoirCompoVisibility() {
   if (!btnVoirCompo) return;
 
@@ -1614,7 +1605,7 @@ async function envoyerAction(cibleUid, ciblePseudo) {
 
   actionDejaEnvoyee = true;
 
-  const { collection, addDoc } = await getFirestoreFns();
+  const { collection, addDoc, doc, updateDoc, arrayUnion } = await getFirestoreFns();
 
   try {
     await addDoc(collection(window.firebaseDB, 'games', currentGameId, 'actions'), {
@@ -1635,6 +1626,21 @@ async function envoyerAction(cibleUid, ciblePseudo) {
     if (monRole === 'voyante' || monRole === 'voyante-bavarde') {
       const roleVu = currentGameData.rolesJoueurs?.[cibleUid];
       showVoyanceCard(ciblePseudo, roleVu);
+
+      // ✅ Message privé immédiat dans le chat
+      const roleObj = getRoleById(roleVu);
+      const roleNom = roleObj?.nom || roleVu;
+
+      await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
+        messages: arrayUnion({
+          pseudo: '🔮 Voyance',
+          text: `Vous avez regardé ${ciblePseudo} qui est ${roleNom}.`,
+          at: Date.now(),
+          systeme: true,
+          pour: user.uid,
+          couleur: 'bleu',
+        }),
+      });
     }
   } catch (err) {
     showMessage('❌ ' + (err.code || err.message));
@@ -1707,26 +1713,24 @@ function ecouterLeTimerDePhase(gameId) {
 
   ecouterTimerPhase(gameId, {
     onTick: (restant, phase, tour) => {
-      // ✅ Ne pas afficher si on n'est PAS sur l'écran de jeu
       const activeScreen = document.querySelector('.screen:not(.hidden)');
       if (!activeScreen || activeScreen.id !== 'game-lobby-screen') {
         if (overlay) overlay.classList.add('hidden');
         return;
       }
-    
-      // ✅ Ne pas afficher si la partie est terminée
+
       if (!currentGameData || currentGameData.enCours !== true) {
         if (overlay) overlay.classList.add('hidden');
         return;
       }
-    
+
       if (overlay && elNom && elTour) {
         overlay.classList.remove('hidden');
         elNom.textContent = (NOMS_PHASES[phase] || phase) + ` (${Math.ceil(restant / 1000)}s)`;
         elTour.textContent = `Tour ${tour}`;
       }
     },
-    
+
     onPhaseChange: (nouvellePhase, nouveauTour) => {
       console.log(`🎬 Nouvelle phase : ${nouvellePhase} (Tour ${nouveauTour})`);
       actionDejaEnvoyee = false;
@@ -1888,7 +1892,6 @@ safeOn(cgCreate, 'click', async () => {
   }
 });
 
-// ✅ FIX : ne rejoint QUE si ?game= est dans l'URL (plus de reload parasite)
 function checkGameLink() {
   const params = new URLSearchParams(window.location.search);
   const urlGameId = params.get('game');
@@ -2006,18 +2009,17 @@ async function watchGame(gameId) {
     if (data.enCours === true || data.status === 'playing') {
       const overlay = document.getElementById('countdown-overlay');
       if (overlay) overlay.classList.add('hidden');
-    
+
       onPartieLancee(data);
       afficherPhase(data.phase || 'avant-crepuscule', data.tour || 1);
       updateChatInputState();
-    
+
       // ✅ Met à jour le chat PC avec les nouveaux messages
       renderChat(data.messages || []);
-    
+
       activerSelectionCible();
       return;
     }
-    
 
     renderGameLobby(data);
   });
@@ -2284,38 +2286,32 @@ const glChatMessages = document.getElementById('gl-chat-messages');
 const glChatInput    = document.getElementById('gl-chat-input');
 const glChatSend     = document.getElementById('gl-chat-send');
 
-function renderMobileChat() {
-  if (!currentGameData) return;
+// ═══════════════════════════════════════════════════════════
+// 💬 RENDU DU CHAT (PC) — avec filtre des messages privés
+// ═══════════════════════════════════════════════════════════
 
-  if (mobileChatVillage) {
-    mobileChatVillage.textContent = currentGameData.villageName || 'Village';
-  }
-  if (mobileChatCount) {
-    mobileChatCount.textContent = `👥 ${currentGameData.players.length}/${currentGameData.maxPlayers}`;
-  }
+function renderChat(messages) {
+  if (!glChatMessages) return;
 
-  if (mobileChatMessages) {
-    const user = window.firebaseAuth?.currentUser;
+  const user = window.firebaseAuth?.currentUser;
 
-    const messages = currentGameData.messages || [];
+  // ✅ Filtre : les messages privés (pour) ne sont visibles que par leur destinataire
+  const messagesFiltres = messages.filter(m => {
+    if (m.pour) return m.pour === user?.uid;
+    return true;
+  });
 
-    const messagesFiltres = messages.filter(m => {
-      if (m.pour) return m.pour === user?.uid;
-      return true;
-    });
+  glChatMessages.innerHTML = messagesFiltres.map(m => {
+    const classes = buildMessageClasses(m);
+    const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
+    return `
+      <div class="${classes}">
+        ${auteur}${m.text}
+      </div>
+    `;
+  }).join('');
 
-    mobileChatMessages.innerHTML = messagesFiltres.map(m => {
-      const classes = buildMessageClasses(m);
-      const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
-      return `
-        <div class="${classes}">
-          ${auteur}${m.text}
-        </div>
-      `;
-    }).join('');
-
-    mobileChatMessages.scrollTop = mobileChatMessages.scrollHeight;
-  }
+  glChatMessages.scrollTop = glChatMessages.scrollHeight;
 }
 
 async function sendChatMessage() {
@@ -2557,15 +2553,13 @@ async function leaveGame() {
       lancementUnsubscribe = null;
     }
 
-    // ✅ Stoppe le timer AVANT de nettoyer
-if (phaseTimerUnsubscribe) {
-  try { phaseTimerUnsubscribe(); } catch (e) {}
-  phaseTimerUnsubscribe = null;
-}
+    if (phaseTimerUnsubscribe) {
+      try { phaseTimerUnsubscribe(); } catch (e) {}
+      phaseTimerUnsubscribe = null;
+    }
 
-// ✅ Cache immédiatement l'overlay de phase
-const phaseOverlay = document.getElementById('phase-overlay');
-if (phaseOverlay) phaseOverlay.classList.add('hidden');
+    const phaseOverlay = document.getElementById('phase-overlay');
+    if (phaseOverlay) phaseOverlay.classList.add('hidden');
 
     desactiverSelectionCible();
     actionDejaEnvoyee = false;
@@ -2574,10 +2568,6 @@ if (phaseOverlay) phaseOverlay.classList.add('hidden');
     roleRevealDejaVu = false;
     document.body.classList.remove('game-started');
     document.body.classList.remove('phase-jour', 'phase-nuit');
-
-    // ✅ Cache tous les overlays de partie
-    const phaseOverlay = document.getElementById('phase-overlay');
-    if (phaseOverlay) phaseOverlay.classList.add('hidden');
 
     const countdownOverlay = document.getElementById('countdown-overlay');
     if (countdownOverlay) countdownOverlay.classList.add('hidden');
@@ -2591,7 +2581,6 @@ if (phaseOverlay) phaseOverlay.classList.add('hidden');
     const actionModal = document.getElementById('action-modal');
     if (actionModal) actionModal.classList.add('hidden');
 
-    // ✅ Ferme le chat mobile si ouvert
     closeMobileChat();
 
     if (btnVoirCompo) btnVoirCompo.classList.add('hidden');
@@ -2628,7 +2617,6 @@ const compAdjointOption  = document.getElementById('comp-adjoint-option');
 
 let compositionLocale = [];
 
-// ✅ NOUVELLE FONCTION : ouvre la popup de configuration
 function ouvrirCompositionEdition() {
   const user = window.firebaseAuth?.currentUser;
   if (!user || !currentGameData) return;
@@ -2836,10 +2824,6 @@ safeOn(compValidate, 'click', async () => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════
-// 🎯 RÔLES SECONDAIRES - Boutons radio
-// ═══════════════════════════════════════════════════════════
-
 document.querySelectorAll('.comp-radio-group').forEach(group => {
   const option = group.dataset.option;
 
@@ -2875,10 +2859,6 @@ document.querySelectorAll('.comp-radio-group').forEach(group => {
               || group.querySelector('[data-value="non"]');
   if (noneBtn) noneBtn.classList.add('active');
 });
-
-// ═══════════════════════════════════════════════════════════
-// ➕➖ CHANGER LE NOMBRE DE JOUEURS
-// ═══════════════════════════════════════════════════════════
 
 const btnMinusPlayers = document.getElementById('btn-minus-players');
 const btnPlusPlayers  = document.getElementById('btn-plus-players');
@@ -2975,6 +2955,7 @@ function closeMobileChat() {
   mobileChatOverlay.classList.add('hidden');
 }
 
+// ✅ UNE SEULE version de renderMobileChat (avec filtre des messages privés)
 function renderMobileChat() {
   if (!currentGameData) return;
 
@@ -2986,12 +2967,24 @@ function renderMobileChat() {
   }
 
   if (mobileChatMessages) {
+    const user = window.firebaseAuth?.currentUser;
     const messages = currentGameData.messages || [];
-    mobileChatMessages.innerHTML = messages.map(m => `
-      <div class="gl-chat-msg">
-        <span class="gl-chat-author">${m.pseudo} :</span>${m.text}
-      </div>
-    `).join('');
+
+    const messagesFiltres = messages.filter(m => {
+      if (m.pour) return m.pour === user?.uid;
+      return true;
+    });
+
+    mobileChatMessages.innerHTML = messagesFiltres.map(m => {
+      const classes = buildMessageClasses(m);
+      const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
+      return `
+        <div class="${classes}">
+          ${auteur}${m.text}
+        </div>
+      `;
+    }).join('');
+
     mobileChatMessages.scrollTop = mobileChatMessages.scrollHeight;
   }
 }
@@ -3061,10 +3054,8 @@ safeOn(mobileChatComp, 'click', () => {
 
   setTimeout(() => {
     if (estHote) {
-      // ✅ Hôte → ouvre la popup de CONFIGURATION (édition)
       ouvrirCompositionEdition();
     } else {
-      // Non-hôte → lecture seule
       afficherCompoActuelle();
     }
   }, 150);

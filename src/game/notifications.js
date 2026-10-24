@@ -117,7 +117,7 @@ export const COULEURS = {
   
   export function voyanteBavardeRevelation(roleNom, camp) {
     return {
-      text: `🔮 La Voyante Bavarde a eu une vision : le rôle découvert est ${roleNom}.`,
+      text: `La voyante bavarde a regardé le rôle du ${roleNom} cette nuit.`,
       couleur: couleurSelonCamp(camp),
     };
   }

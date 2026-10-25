@@ -117,8 +117,9 @@ export const COULEURS = {
   
   export function voyanteBavardeRevelation(roleNom, camp) {
     return {
-      text: `La voyante bavarde a regardé le rôle du ${roleNom} cette nuit.`,
+      text: `La Voyante Bavarde a regardé le rôle du ${roleNom} cette nuit.`,
       couleur: couleurSelonCamp(camp),
+      type: 'info-voyance', // ✅ NOUVEAU : pour déclencher la bulle bleue
     };
   }
   

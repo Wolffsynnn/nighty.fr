@@ -57,6 +57,7 @@ async function ajouterMessage(gameId, msg) {
       systeme: msg.systeme || false,
       pour: msg.pour || null,
       couleur: msg.couleur || null,
+      type: msg.type || null, // ✅ NOUVEAU : on sauvegarde le type
     })
   });
 }

@@ -1633,12 +1633,13 @@ async function envoyerAction(cibleUid, ciblePseudo) {
 
       await updateDoc(doc(window.firebaseDB, 'games', currentGameId), {
         messages: arrayUnion({
-          pseudo: '🔮 Voyance',
+          pseudo: 'Information',
           text: `Vous avez regardé ${ciblePseudo} qui est ${roleNom}.`,
           at: Date.now(),
           systeme: true,
           pour: user.uid,
           couleur: 'bleu',
+          type: 'info-voyance', // ✅ NOUVEAU : pour le style spécial
         }),
       });
     }
@@ -2295,7 +2296,6 @@ function renderChat(messages) {
 
   const user = window.firebaseAuth?.currentUser;
 
-  // ✅ Filtre : les messages privés (pour) ne sont visibles que par leur destinataire
   const messagesFiltres = messages.filter(m => {
     if (m.pour) return m.pour === user?.uid;
     return true;
@@ -2303,6 +2303,18 @@ function renderChat(messages) {
 
   glChatMessages.innerHTML = messagesFiltres.map(m => {
     const classes = buildMessageClasses(m);
+    
+    // ✅ Gestion spéciale pour l'info voyance
+    if (m.type === 'info-voyance') {
+      return `
+        <div class="${classes}">
+          <div class="info-header">Information</div>
+          <div class="info-body">${m.text}</div>
+        </div>
+      `;
+    }
+
+    // Message normal
     const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
     return `
       <div class="${classes}">
@@ -2977,6 +2989,18 @@ function renderMobileChat() {
 
     mobileChatMessages.innerHTML = messagesFiltres.map(m => {
       const classes = buildMessageClasses(m);
+      
+      // ✅ Gestion spéciale pour l'info voyance
+      if (m.type === 'info-voyance') {
+        return `
+          <div class="${classes}">
+            <div class="info-header">Information</div>
+            <div class="info-body">${m.text}</div>
+          </div>
+        `;
+      }
+
+      // Message normal
       const auteur = m.systeme ? '' : `<span class="gl-chat-author">${m.pseudo} :</span>`;
       return `
         <div class="${classes}">
@@ -3105,6 +3129,9 @@ function buildMessageClasses(m) {
 
   if (m.systeme) classes += ' gl-chat-msg-systeme';
   if (m.couleur) classes += ` gl-chat-msg-${m.couleur}`;
+  
+  // ✅ Ajoute la classe spécifique si c'est une info voyance
+  if (m.type === 'info-voyance') classes += ' gl-chat-msg-info-voyance';
 
   return classes;
 }

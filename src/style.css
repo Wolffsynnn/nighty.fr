@@ -3600,3 +3600,39 @@ body.is-mobile .info-voyance-body p {
   font-size: 0.85rem;
   line-height: 1.5;
 }
+/* ═══════════════════════════════════════════════════════════
+   🔮 BULLE D'INFORMATION (Voyance)
+   ═══════════════════════════════════════════════════════════ */
+
+   .gl-chat-msg-info-voyance {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
+    border: 1px solid #60a5fa !important;
+    border-radius: 10px !important;
+    padding: 0 !important; /* On gère le padding à l'intérieur */
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    color: #fff !important;
+  }
+  
+  .gl-chat-msg-info-voyance .info-header {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #93c5fd; /* Bleu clair */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .gl-chat-msg-info-voyance .info-body {
+    padding: 12px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #ffffff;
+  }
+  
+  /* On écrase le style italique des messages système pour ce message précis */
+  .gl-chat-msg-info-voyance.gl-chat-msg-systeme {
+    font-style: normal !important;
+  }

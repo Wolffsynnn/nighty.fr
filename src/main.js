@@ -3135,3 +3135,9 @@ function buildMessageClasses(m) {
 
   return classes;
 }
+
+// ✅ Fermer la carte d'information
+safeOn(document.getElementById('info-voyance-close'), 'click', () => {
+  const card = document.getElementById('info-voyance-card');
+  if (card) card.classList.add('hidden');
+});

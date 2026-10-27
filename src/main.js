@@ -57,6 +57,7 @@ let roleRevealDejaVu = false;
 let choixAnge = 'none';
 let choixMaire = 'none';
 let choixAdjoint = 'non';
+let voyanceCardFermee = false;
 
 // ===== RÉCUPÉRATION DES ÉCRANS =====
 const introScreen       = document.getElementById('intro-screen');
@@ -1290,6 +1291,8 @@ const NOMS_PHASES = {
 };
 
 function afficherPhase(phase, tour) {
+  voyanceCardFermee = false;
+
   const overlay = document.getElementById('phase-overlay');
   const elNom = document.getElementById('phase-nom');
   const elTour = document.getElementById('phase-tour');
@@ -1329,12 +1332,13 @@ function updateInfoVoyanceCard(phase) {
   const texteEl = document.getElementById('info-voyance-texte');
   if (!card || !texteEl) return;
 
-  if (phase !== 'crepuscule') {
+  // ✅ Si le joueur a fermé la carte, on ne l'affiche plus pour cette phase
+  if (voyanceCardFermee) {
     card.classList.add('hidden');
     return;
   }
 
-  if (!currentGameData || currentGameData.enCours !== true) {
+  if (phase !== 'crepuscule') {
     card.classList.add('hidden');
     return;
   }
@@ -3130,7 +3134,6 @@ function buildMessageClasses(m) {
   if (m.systeme) classes += ' gl-chat-msg-systeme';
   if (m.couleur) classes += ` gl-chat-msg-${m.couleur}`;
   
-  // ✅ Ajoute la classe spécifique si c'est une info voyance
   if (m.type === 'info-voyance') classes += ' gl-chat-msg-info-voyance';
 
   return classes;
@@ -3140,4 +3143,5 @@ function buildMessageClasses(m) {
 safeOn(document.getElementById('info-voyance-close'), 'click', () => {
   const card = document.getElementById('info-voyance-card');
   if (card) card.classList.add('hidden');
+  voyanceCardFermee = true;
 });

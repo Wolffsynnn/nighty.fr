@@ -3492,24 +3492,58 @@ body.is-mobile:not(.chat-open) .back-btn {
   /* ═══════════════════════════════════════════════════════════
    🔮 CARTE INFORMATION — Rôles de voyance (thème automnal)
    ═══════════════════════════════════════════════════════════ */
-.info-voyance-card {
-  position: fixed;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 600;
-  width: min(92%, 560px);
-  background: rgba(15, 10, 5, 0.95);
-  border: 2px solid rgba(255, 179, 71, 0.6);
-  border-radius: 18px;
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.75),
-    0 0 50px rgba(255, 150, 50, 0.35);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
-  animation: infoVoyanceSlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  pointer-events: none;
-}
+   .info-voyance-card {
+    position: fixed;
+    top: 80px; /* Remonté un peu */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 600;
+    width: min(90%, 400px); /* Plus étroit (400px au lieu de 560px) */
+    background: rgba(15, 10, 5, 0.95);
+    border: 2px solid rgba(255, 179, 71, 0.6);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 150, 50, 0.3);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    animation: infoVoyanceSlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: auto; /* Pour que la croix soit cliquable */
+  }
+  
+  /* On réduit aussi la taille du texte à l'intérieur */
+  .info-voyance-body {
+    padding: 12px 16px 16px 16px;
+    background: rgba(15, 10, 5, 0.95);
+  }
+  
+  .info-voyance-body p {
+    font-family: 'Georgia', serif;
+    font-size: 0.85rem; /* Texte plus petit */
+    line-height: 1.4;
+    color: #f5e6c8;
+    text-align: center;
+    margin: 0;
+    font-style: italic;
+  }
+  
+  /* Le bouton fermer */
+  .info-voyance-close {
+    margin-left: auto;
+    background: rgba(0, 0, 0, 0.4);
+    border: none;
+    color: #fff;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+  }
+  .info-voyance-close:hover {
+    background: #ef4444;
+  }
 
 .info-voyance-card.hidden { display: none; }
 
@@ -3655,4 +3689,8 @@ body.is-mobile .info-voyance-body p {
 }
 .info-voyance-close:hover {
   background: #ef4444;
+}
+
+body.is-mobile .mobile-chat-overlay {
+  z-index: 9999 !important; /* Le chat passe au-dessus de tout */
 }

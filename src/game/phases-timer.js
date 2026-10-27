@@ -175,31 +175,39 @@ async function declencherResolution(gameId, data) {
 const phasesDejaAnnoncees = new Set();
 
 async function envoyerMessagePhase(gameId, phase) {
-  const { doc, getDoc, updateDoc, arrayUnion } = await getFirestoreFns();
-  const snap = await getDoc(doc(window.firebaseDB, 'games', gameId));
-  if (!snap.exists()) return;
+  const { doc, runTransaction } = await getFirestoreFns();
+  const gameRef = doc(window.firebaseDB, 'games', gameId);
 
-  const data = snap.data();
-  
-  // ✅ Seul l'hôte a le droit d'envoyer le message de phase
-  const user = window.firebaseAuth?.currentUser;
-  if (!user || data.hostId !== user.uid) return;
+  try {
+    await runTransaction(window.firebaseDB, async (transaction) => {
+      const snap = await transaction.get(gameRef);
+      if (!snap.exists()) return;
 
-  const notif = NOTIF.messagePhase(phase);
-  if (!notif) return;
+      const data = snap.data();
+      const cle = `${phase}-${data.tour || 1}`;
 
-  await updateDoc(doc(window.firebaseDB, 'games', gameId), {
-    messages: arrayUnion({
-      pseudo: '📢 Système',
-      text: notif.text,
-      at: Date.now(),
-      systeme: true,
-      pour: null,
-      couleur: notif.couleur,
-    })
-  });
+      // ✅ Si le message a déjà été envoyé pour cette phase, on ne fait RIEN
+      if (data.dernierePhaseAnnoncee === cle) return;
 
-  console.log(`📢 Message de phase envoyé par l'hôte : ${phase}`);
+      const notif = NOTIF.messagePhase(phase);
+      if (!notif) return;
+
+      // ✅ On ajoute le message ET on verrouille avec la clé
+      transaction.update(gameRef, {
+        dernierePhaseAnnoncee: cle,
+        messages: (data.messages || []).concat({
+          pseudo: '📢 Système',
+          text: notif.text,
+          at: Date.now(),
+          systeme: true,
+          pour: null,
+          couleur: notif.couleur,
+        })
+      });
+    });
+  } catch (err) {
+    console.warn('⚠️ Message de phase bloqué (déjà envoyé).');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
